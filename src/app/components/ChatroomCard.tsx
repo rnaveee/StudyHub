@@ -1,11 +1,13 @@
 import Link from "next/link";
 import type { Chatroom } from "../data";
 
-export type CourseCardProps = {
+export type ChatroomCardProps = {
   chatroom: Chatroom;
 };
 
-export default function ClassCard({ chatroom }: CourseCardProps) {
+export default function ChatroomCard({ chatroom }: ChatroomCardProps) {
+
+
   return (
     <Link
       href={`/chatrooms/${chatroom.id}`}

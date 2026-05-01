@@ -2,9 +2,11 @@ import { ClerkProvider } from "@clerk/nextjs";
 import Header from "./components/Header";
 import "./globals.css";
 
-const publishableKey =
-  process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY ??
-  "pk_test_ZnJvbnRlbmQtbW9jay5zdHVkeWh1Yi5kZXYk";
+const publishableKey = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
+
+if (!publishableKey) {
+  throw new Error("Missing NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY.");
+}
 
 export const metadata = {
   title: "StudyHub",

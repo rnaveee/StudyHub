@@ -1,7 +1,15 @@
+"use client";
 
 import Link from "next/link";
+import { useAuth } from "@clerk/nextjs"
 
 export default function Hero() {
+  const { isSignedIn, isLoaded } = useAuth();
+
+  if(!isLoaded){
+    return null;
+  }
+
   return (
     <section className="px-4 py-6 sm:px-6 lg:px-8">
       <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
@@ -16,12 +24,21 @@ export default function Hero() {
             </p>
 
             <div className="mt-7 flex flex-col gap-3 sm:flex-row">
-              <Link
+              {isSignedIn ? (
+                <Link
+                href="/dashboard"
+                className="rounded-md bg-purple-700 px-5 py-3 text-center text-sm font-bold text-white shadow-sm hover:bg-purple-800"
+                >
+                  Find your class
+                </Link>
+              ) : (
+                <Link
                 href="/signin"
                 className="rounded-md bg-purple-700 px-5 py-3 text-center text-sm font-bold text-white shadow-sm hover:bg-purple-800"
-              >
-                Find your class
-              </Link>
+                >
+                  Find your class
+                </Link>
+              )}
             </div>
           </div>
 

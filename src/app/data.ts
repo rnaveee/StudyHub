@@ -18,5 +18,5 @@ export type Chatroom = {
   id: string;
   course: Course;
   joinedUsers: number;
-  onGoing: true;
+  onGoing: boolean;
 };
