@@ -1,93 +1,57 @@
-
-import { auth } from "@clerk/nextjs/server";
-import { redirect } from "next/navigation";
+import { connection } from "next/server";
 import ChatroomCard from "../components/ChatroomCard";
 import ClassSearch from "../components/ClassSearch";
 import CreateClass from "../components/CreateClass";
 import type { Chatroom } from "../data";
 import { getSupabaseAdmin } from "../lib/supabaseAdmin";
 
-type CourseRow = {
-    id: string;
-    class_id: string;
-    class_name: string;
-    professor: string;
-    school: string;
-    final_exam_date: string | null;
-};
-
-type ChatroomRow = {
-    id: string;
-    joined_users: number;
-    ongoing: boolean;
-    courses: CourseRow | CourseRow[] | null;
-};
-
-type ChatroomMembershipRow = {
-    chatroom_id: string;
-    chatrooms: ChatroomRow | ChatroomRow[] | null;
-};
-
 
 export default async function Dashboard(){
-    const { userId } = await auth();
-
-    if(!userId){
-        redirect("/signin");
-    }
+    await connection();
 
     const supabaseAdmin = getSupabaseAdmin();
+
     const { data, error } = await supabaseAdmin
-        .from("chatroom_members")
+        .from("chatrooms")
         .select(`
-        chatroom_id,
-        chatrooms (
             id,
-            joined_users,
             ongoing,
             courses (
-            id,
-            class_id,
-            class_name,
-            professor,
-            school,
-            final_exam_date
+                id,
+                class_id,
+                class_name,
+                professor,
+                school,
+                final_exam_date
             )
-        )
-        `)
-        .eq("clerk_user_id", userId);
-    
+        `);
     if(error){
-        throw new Error(error.message);
+        throw error;
     }
 
-    const memberships = (data ?? []) as ChatroomMembershipRow[];
-    const chatrooms: Chatroom[] = memberships.flatMap((membership) => {
-        const chatroom = Array.isArray(membership.chatrooms)
-            ? membership.chatrooms[0]
-            : membership.chatrooms;
-        const course = Array.isArray(chatroom?.courses)
-            ? chatroom.courses[0]
-            : chatroom?.courses;
+    const chatrooms: Chatroom[] = data
+        .map((row) => {
+            const course = Array.isArray(row.courses) ? row.courses[0] : row.courses;
 
-        if (!chatroom || !course) {
-            return [];
-        }
+            if (!course) {
+                return null;
+            }
 
-        return [{
-            id: chatroom.id,
-            joinedUsers: chatroom.joined_users,
-            onGoing: chatroom.ongoing,
-            course: {
-                id: course.id,
-                classID: course.class_id,
-                className: course.class_name,
-                professor: course.professor,
-                school: course.school,
-                finalsDate: course.final_exam_date ?? "",
-            },
-        }];
-    });
+            return {
+                id: row.id,
+                joinedUsers: 0,
+                onGoing: row.ongoing,
+                course: {
+                    id: course.id,
+                    classID: course.class_id,
+                    className: course.class_name,
+                    professor: course.professor ?? "Professor not listed",
+                    school: course.school,
+                    finalsDate: course.final_exam_date ?? "",
+                },
+            };
+        })
+        .filter((chatroom): chatroom is Chatroom => chatroom !== null);
 
     return(
         <section className="px-4 py-6 sm:px-6 lg:px-8">

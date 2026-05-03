@@ -25,7 +25,7 @@ export default function Header() {
         {isSignedIn ? (
           <div className="flex rounded-md px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-purple-50 hover:text-purple-700">
             <UserButton/>
-            <Link href="/dashboard" className="rounded-md px-3 py-2 text-sm hover:text-purple-700">{user.firstName}</Link>
+            <Link href="/profile" className="rounded-md px-3 py-2 text-sm hover:text-purple-700">{user.firstName}</Link>
           </div>
         ) : (
           <Link

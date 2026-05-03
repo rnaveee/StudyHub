@@ -24,21 +24,12 @@ export default function Hero() {
             </p>
 
             <div className="mt-7 flex flex-col gap-3 sm:flex-row">
-              {isSignedIn ? (
-                <Link
-                href="/dashboard"
+              <Link
+                href={isSignedIn ? "/dashboard" : "/signin"}
                 className="rounded-md bg-purple-700 px-5 py-3 text-center text-sm font-bold text-white shadow-sm hover:bg-purple-800"
-                >
-                  Find your class
-                </Link>
-              ) : (
-                <Link
-                href="/signin"
-                className="rounded-md bg-purple-700 px-5 py-3 text-center text-sm font-bold text-white shadow-sm hover:bg-purple-800"
-                >
-                  Find your class
-                </Link>
-              )}
+              >
+                Find your class
+              </Link>
             </div>
           </div>
 

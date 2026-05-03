@@ -1,15 +1,6 @@
-import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
-import { NextResponse } from "next/server";
+import { clerkMiddleware } from "@clerk/nextjs/server";
 
-const isAuthRoute = createRouteMatcher(["/signin", "/signin(.*)"]);
-
-const clerkProxy = clerkMiddleware(async (auth, req) => {
-  const { userId } = await auth();
-
-  if (isAuthRoute(req) && userId) {
-    return NextResponse.redirect(new URL("/dashboard", req.url));
-  }
-});
+const clerkProxy = clerkMiddleware();
 
 export function proxy(...args: Parameters<typeof clerkProxy>) {
   return clerkProxy(...args);

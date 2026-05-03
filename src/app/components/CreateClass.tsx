@@ -35,16 +35,6 @@ export default function CreateClass(){
                     </div>
 
                     <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_9rem]">
-                        <label className="block">
-                            <span className="mb-1 block text-sm font-semibold text-slate-700">Professor</span>
-                            <input
-                                className="w-full rounded-md border border-slate-200 px-3 py-2 text-sm outline-none focus:border-purple-400 focus:ring-2 focus:ring-purple-100"
-                                type="text"
-                                name="professor"
-                                placeholder="Dr. Mark"
-                                required
-                            />
-                        </label>
 
                         <label className="block">
                             <span className="mb-1 block text-sm font-semibold text-slate-700">School</span>
@@ -62,6 +52,15 @@ export default function CreateClass(){
                         <p className="text-sm text-slate-500">You can add these later.</p>
                     </div>
                     <label className="block max-w-xs">
+                        <label className="block">
+                            <span className="mb-1 block text-sm font-semibold text-slate-700">Professor</span>
+                            <input
+                                className="w-full rounded-md border border-slate-200 px-3 py-2 text-sm outline-none focus:border-purple-400 focus:ring-2 focus:ring-purple-100"
+                                type="text"
+                                name="professor"
+                                placeholder="Dr. Mark"
+                            />
+                        </label>
                         <span className="mb-1 block text-sm font-semibold text-slate-700">Final exam date</span>
                         <input
                             className="w-full rounded-md border border-slate-200 px-3 py-2 text-sm outline-none focus:border-purple-400 focus:ring-2 focus:ring-purple-100"
