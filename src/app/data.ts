@@ -1,11 +1,3 @@
-export type StudyUser = {
-  id: string;
-  username: string;
-  email: string;
-  major: string;
-  color: string;
-  school: string;
-};
 
 export type Course = {
   id: string;

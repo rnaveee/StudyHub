@@ -26,8 +26,8 @@ export default function ChatroomCard({ chatroom }: ChatroomCardProps) {
           {chatroom.joinedUsers} joined users
         </span>
       </div>
-      <div className="text-2xl font-bold text-slate-950">{chatroom.course.className}</div>
-      <div className="text-lg text-slate-600">{chatroom.course.professor}</div>
+      <div className="text-xl font-bold text-slate-950">{chatroom.course.className}</div>
+      <div className="text-md text-slate-600">{chatroom.course.professor}</div>
     </Link>
   );
 }

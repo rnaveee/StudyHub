@@ -1,6 +1,7 @@
 import { currentUser } from "@clerk/nextjs/server";
 import Image from "next/image";
-import { upsertCurrentUser } from "../dashboard/actions";
+import { upsertCurrentUser } from "../utils/chatroomHelper";
+import Link from "next/link";
 
 function getInitials(name: string | null) {
     if (!name) {
@@ -35,15 +36,41 @@ export default async function ProfilePage() {
     const profileRows = [
         { label: "Email", value: profile.email ?? "No email connected" },
         { label: "School", value: profile.school ?? "Not set yet" },
-        { label: "Major", value: profile.major ?? "Not set yet" },
+        { label: "Year", value: profile.year ?? 0 },
         { label: "Member since", value: memberSince },
     ];
 
     return(
         <section className="px-4 py-6 sm:px-6 lg:px-8">
             <div className="mx-auto flex w-full max-w-4xl flex-col gap-4">
-                <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-                    <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+                <div className="relative rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+                    <div className="absolute right-4 top-4 flex flex-col items-end gap-1">
+                        <Link
+                            href="/profile/update-profile"
+                            aria-label="Edit profile"
+                            className="flex h-9 w-9 items-center justify-center rounded-md text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
+                        >
+                            <svg
+                                aria-hidden="true"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="2"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                className="h-5 w-5"
+                            >
+                                <path d="M12 20h9" />
+                                <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
+                            </svg>
+                        </Link>
+
+                        <span className="w-fit rounded-full border border-green-200 bg-green-50 px-3 py-1 text-xs font-bold text-green-700">
+                            Active student
+                        </span>
+                        <div className="w-fit rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-bold text-blue-700">{profile.major ?? 'Undeclared'}</div>
+                    </div>
+                    <div className="flex flex-col gap-5 pr-32 sm:flex-row sm:items-center sm:justify-between">
                         <div className="flex items-center gap-4">
                             {avatarUrl ? (
                             <Image
@@ -73,9 +100,6 @@ export default async function ProfilePage() {
                             </div>
                         </div>
 
-                        <span className="w-fit rounded-full border border-green-200 bg-green-50 px-3 py-1 text-xs font-bold text-green-700">
-                            Active student
-                        </span>
                     </div>
                 </div>
 
@@ -104,20 +128,19 @@ export default async function ProfilePage() {
 
                     <aside className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
                         <h2 className="text-xl font-bold tracking-tight text-slate-950">
-                            Study activity
+                            More Information
                         </h2>
+                        <div className="mt-2 rounded-md border border-slate-200 bg-slate-50 p-3">
+                            <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
+                                Major
+                            </p>
+                            <p className="mt-1 text-lg font-bold text-slate-950">{profile.major ?? 'Undeclared'}</p>
+                        </div>
 
-                        <div className="mt-4 grid gap-3">
+                        <div className="mt-2 grid gap-3">
                             <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
                                 <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
-                                    Joined rooms
-                                </p>
-                                <p className="mt-1 text-2xl font-bold text-slate-950">WORK ON THIS</p>
-                            </div>
-
-                            <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
-                                <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
-                                    Created rooms
+                                    Classes Taking
                                 </p>
                                 <p className="mt-1 text-2xl font-bold text-slate-950">WORK ON THIS</p>
                             </div>

@@ -65,7 +65,7 @@ export default function CreateClass(){
                         <input
                             className="w-full rounded-md border border-slate-200 px-3 py-2 text-sm outline-none focus:border-purple-400 focus:ring-2 focus:ring-purple-100"
                             type="date"
-                            name="finalsDate"
+                            name="finalExamDate"
                             placeholder="MATH101"
                         />
                     </label>
