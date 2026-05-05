@@ -97,12 +97,14 @@ export async function upsertCurrentUser(){
         return existingProfile;
     }
 
+
     const { data, error } = await supabaseAdmin
         .from("profiles")
         .insert({
             id: user.id,
             username: user.username ?? user.fullName,
             email: user.primaryEmailAddress?.emailAddress ?? null,
+            avatar_url: user.imageUrl,
             school: 'Not set yet.',
             major: 'Not set yet.',
             year: 0,

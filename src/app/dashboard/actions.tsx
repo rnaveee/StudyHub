@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
-import { upsertChatroom, upsertChatroomMember, upsertCourse, upsertCurrentUser } from "../utils/chatroomHelper";
+import { upsertChatroom, upsertChatroomMember, upsertCourse, upsertCurrentUser } from "../utils/uploadHelpers";
 import { getSupabaseAdmin } from "../lib/supabaseAdmin";
 
 export async function createChatroom(formData: FormData){

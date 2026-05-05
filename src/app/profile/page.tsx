@@ -1,6 +1,6 @@
 import { currentUser } from "@clerk/nextjs/server";
 import Image from "next/image";
-import { upsertCurrentUser } from "../utils/chatroomHelper";
+import { upsertCurrentUser } from "../utils/uploadHelpers";
 import Link from "next/link";
 
 function getInitials(name: string | null) {

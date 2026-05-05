@@ -1,15 +1,31 @@
 
 import { redirect } from "next/navigation";
 import { getSupabaseAdmin } from "../../lib/supabaseAdmin";
-import UserMessage from "../../components/UserMessage";
-import OtherUserMessage from "../../components/OtherUserMessage";
+import { upsertCurrentUser } from "../../utils/uploadHelpers";
+import ChatMessages from "../../components/ChatMessages";
 
 export default async function ChatroomPage({params,}: {params: Promise<{ chatroomId: string }>; }) {
   const { chatroomId } = await params;
 
   const supabaseAdmin = getSupabaseAdmin();
+  const user = await upsertCurrentUser();
 
-  const { data: chatroom, error } = await supabaseAdmin
+  const { data: membership, error: membershipError } = await supabaseAdmin
+    .from("chatroom_members")
+    .select("chatroom_id, user_id")
+    .eq("chatroom_id", chatroomId)
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (membershipError) {
+    throw membershipError;
+  }
+
+  if (!membership) {
+    redirect("/dashboard?error=You%20are%20not%20a%20member%20of%20this%20chatroom.");
+  }
+
+  const { data: chatroom, error: chatroomError } = await supabaseAdmin
     .from("chatrooms")
     .select(`
         id,
@@ -29,7 +45,7 @@ export default async function ChatroomPage({params,}: {params: Promise<{ chatroo
       .eq("id", chatroomId)
       .single();
   
-  if (error || !chatroom) {
+  if (chatroomError || !chatroom) {
     redirect("/dashboard?error=Chatroom%20not%20found.");
   }
   
@@ -41,10 +57,28 @@ export default async function ChatroomPage({params,}: {params: Promise<{ chatroo
     redirect("/dashboard?error=Chatroom%20course%20error.");
   }
 
+  const { data: messages, error: messageError } = await supabaseAdmin
+    .from("messages")
+    .select(`id, 
+      user_id, 
+      body, 
+      created_at,
+      profiles (
+        avatar_url
+      )
+    `)
+    .eq("chatroom_id", chatroomId)
+    .order("created_at", { ascending: false })
+    .limit(50)
+  if(messageError){
+    redirect("/dashboard?error=Chatroom%20error.");
+  }
+
+  const orderedMessages = [...(messages ?? [])].reverse();
+
   const chatName = course.class_name ?? "New groupchat";
   const classID = course.class_id ?? "Unknown class";
   const joinedUsers = chatroom.chatroom_members?.length ?? 0;
-  
 
   return (
     <section className="px-4 py-6 sm:px-6 lg:px-8">
@@ -67,18 +101,7 @@ export default async function ChatroomPage({params,}: {params: Promise<{ chatroo
             {joinedUsers} joined users
           </span>
         </div>
-        <div className="mt-4 min-h-24 rounded-md border border-dashed border-slate-200 bg-slate-50 p-3">
-            <div className="flex flex-col gap-1 mb-2">
-              {/* message cards go here */}
-            </div>
-            <form>
-              <input
-              type="text"
-              placeholder="Message.."
-              className="w-full rounded-md border border-slate-200 px-2 py-1 text-sm outline-none focus:border-purple-400 focus:ring-2 bg-slate-300 focus:ring-purple-100"
-              />
-            </form>
-        </div>
+          <ChatMessages chatroomId={chatroomId} currentUserId={user.id} initialMessages={orderedMessages} currentUserAvatarUrl={user.avatar_url}/>
       </div>
     </section>
   );

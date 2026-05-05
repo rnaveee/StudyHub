@@ -14,3 +14,15 @@ export type Chatroom = {
   joinedUsers: number;
   onGoing: boolean;
 };
+
+export type Message = {
+  id: string;
+  user_id: string;
+  body: string | null;
+  created_at: string;
+  profiles?: {
+    avatar_url: string | null
+  }[] | {
+    avatar_url: string | null
+  } | null;
+}

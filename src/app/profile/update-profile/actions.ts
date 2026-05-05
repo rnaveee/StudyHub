@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getSupabaseAdmin } from "../../lib/supabaseAdmin";
-import { upsertCurrentUser } from "../../utils/chatroomHelper";
+import { upsertCurrentUser } from "../../utils/uploadHelpers";
 
 export async function updateProfile(formData: FormData) {
     const profile = await upsertCurrentUser();

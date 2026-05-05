@@ -1,5 +1,5 @@
 
-import { upsertCurrentUser } from "../../utils/chatroomHelper";
+import { upsertCurrentUser } from "../../utils/uploadHelpers";
 import { updateProfile } from "./actions";
 
 
