@@ -1,6 +1,8 @@
 
 import { redirect } from "next/navigation";
 import { getSupabaseAdmin } from "../../lib/supabaseAdmin";
+import UserMessage from "../../components/UserMessage";
+import OtherUserMessage from "../../components/OtherUserMessage";
 
 export default async function ChatroomPage({params,}: {params: Promise<{ chatroomId: string }>; }) {
   const { chatroomId } = await params;
@@ -66,8 +68,9 @@ export default async function ChatroomPage({params,}: {params: Promise<{ chatroo
           </span>
         </div>
         <div className="mt-4 min-h-24 rounded-md border border-dashed border-slate-200 bg-slate-50 p-3">
-            <div>message</div>
-            <div>message</div>
+            <div className="flex flex-col gap-1 mb-2">
+              {/* message cards go here */}
+            </div>
             <form>
               <input
               type="text"
