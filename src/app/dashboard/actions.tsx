@@ -16,7 +16,7 @@ export async function createChatroom(formData: FormData){
     const finalExamDate = String(formData.get("finalExamDate") ?? "").trim() || null;
 
     if (!classID || !className || !school) {
-    redirect("/dashboard?error=Missing%20required%20class%20fields.");
+        redirect("/dashboard?error=Missing%20required%20class%20fields.");
     }
 
 

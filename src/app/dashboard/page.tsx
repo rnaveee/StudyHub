@@ -23,6 +23,17 @@ export default async function Dashboard({
 
     const supabaseAdmin = getSupabaseAdmin();
 
+    const { data: memberships, error: membershipsError } = await supabaseAdmin
+        .from("chatroom_members")
+        .select("chatroom_id")
+        .eq("user_id", user.id);
+
+    if (membershipsError) {
+        throw membershipsError;
+    }
+
+    const joinedChatroomIds = memberships.map((membership) => membership.chatroom_id);
+
     const { data, error } = await supabaseAdmin
         .from("chatrooms")
         .select(`
@@ -39,7 +50,9 @@ export default async function Dashboard({
                 school,
                 final_exam_date
             )
-        `);
+        `)
+    .in("id", joinedChatroomIds);
+    
     if(error){
         throw error;
     }
