@@ -88,53 +88,49 @@ export async function searchChatrooms(formData: FormData): Promise<SearchResult[
     const normalizedQuery = query.toLowerCase();
     const normalizedSchool = school.toLowerCase();
 
+    if(normalizedQuery === "" && normalizedSchool === ""){
+        return [];
+    }
+
     const profile = await upsertCurrentUser();
     const supabaseAdmin = getSupabaseAdmin();
 
-    const { data: chatrooms, error: searchError } = await supabaseAdmin
+    let q = supabaseAdmin
         .from("chatrooms")
         .select(`
             id,
             ongoing,
-            chatroom_members (
+            chatroom_members(
                 user_id
             ),
-            courses (
+            courses!inner(
                 id,
                 class_id,
                 class_name,
                 professor,
                 school,
-                final_exam_date
+                created_by
             )
-        `);
+        `)
+        .limit(20);
+    
+    if(normalizedQuery){
+        q = q.or(
+            `class_id.ilike.%${normalizedQuery}%,class_name.ilike.%${normalizedQuery}%`,
+            { foreignTable: "courses" }
+        );
+    }
+    if(normalizedSchool){
+        q = q.ilike("courses.school", `%${normalizedSchool}%`)
+    }
+    
+    const {data: chatrooms, error: queryError} = await q;
 
-    if (searchError) {
-        throw searchError;
+    if (queryError) {
+        throw queryError;
     }
 
-    const filteredChatrooms = chatrooms.filter((chatroom) => {
-        const course = Array.isArray(chatroom.courses)
-            ? chatroom.courses[0]
-            : chatroom.courses;
-
-        if (!course) {
-            return false;
-        }
-
-        const matchesQuery =
-            !normalizedQuery ||
-            course.class_id.toLowerCase().includes(normalizedQuery) ||
-            course.class_name.toLowerCase().includes(normalizedQuery);
-
-        const matchesSchool =
-            !normalizedSchool ||
-            course.school.toLowerCase().includes(normalizedSchool);
-
-        return matchesQuery && matchesSchool;
-    });
-
-    return filteredChatrooms.map((chatroom) => {
+    return chatrooms.map((chatroom) => {
         const course = Array.isArray(chatroom.courses)
             ? chatroom.courses[0]
             : chatroom.courses;
