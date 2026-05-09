@@ -1,4 +1,7 @@
 export default function ClassSearch() {
+
+  
+
   return (
     <section className="w-full rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
       <h2 className="text-xl font-bold tracking-tight text-slate-950">Search classrooms</h2>
