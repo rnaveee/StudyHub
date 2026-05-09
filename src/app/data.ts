@@ -26,3 +26,13 @@ export type Message = {
     avatar_url: string | null
   } | null;
 }
+
+export type SearchResult = {
+  chatroomId: string;
+  classId: string;
+  className: string;
+  professor: string | null;
+  school: string;
+  joinedUsers: number;
+  isJoined: boolean;
+};

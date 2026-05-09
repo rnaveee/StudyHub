@@ -1,15 +1,25 @@
-import { createChatroom } from "../dashboard/actions";
+"use client";
 
+import { useActionState } from "react";
+import { createChatroom, type CreateChatroomState } from "../dashboard/actions";
+
+const initialState: CreateChatroomState = { error: null };
 
 export default function CreateClass(){
-    
+    const [state, formAction, isPending] = useActionState(createChatroom, initialState);
+
     return(
         <section className="w-full rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
             <h2 className="text-xl font-bold tracking-tight text-slate-950">Can&apos;t find your class? Create one!</h2>
             <p className="text-sm text-slate-500">StudyHub will automatically generate a link for this chatroom.</p>
 
             <div className="mt-4">
-                <form className="grid gap-3" action={createChatroom}>
+                <form className="grid gap-3" action={formAction}>
+                    {state.error && (
+                        <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                            {state.error}
+                        </div>
+                    )}
                     <div className="grid gap-3 sm:grid-cols-[9rem_minmax(0,1fr)]">
                         <label className="block">
                             <span className="mb-1 block text-sm font-semibold text-slate-700">Class ID</span>
@@ -51,7 +61,7 @@ export default function CreateClass(){
                         <h2 className="text-xl font-bold tracking-tight text-slate-950">Other details</h2>
                         <p className="text-sm text-slate-500">You can add these later.</p>
                     </div>
-                    <label className="block max-w-xs">
+                    <div className="flex flex-col gap-3 max-w-xs">
                         <label className="block">
                             <span className="mb-1 block text-sm font-semibold text-slate-700">Professor</span>
                             <input
@@ -61,25 +71,27 @@ export default function CreateClass(){
                                 placeholder="Dr. Mark"
                             />
                         </label>
-                        <span className="mb-1 block text-sm font-semibold text-slate-700">Final exam date</span>
-                        <input
-                            className="w-full rounded-md border border-slate-200 px-3 py-2 text-sm outline-none focus:border-purple-400 focus:ring-2 focus:ring-purple-100"
-                            type="date"
-                            name="finalExamDate"
-                            placeholder="MATH101"
-                        />
-                    </label>
+                        <label className="block">
+                            <span className="mb-1 block text-sm font-semibold text-slate-700">Final exam date</span>
+                            <input
+                                className="w-full rounded-md border border-slate-200 px-3 py-2 text-sm outline-none focus:border-purple-400 focus:ring-2 focus:ring-purple-100"
+                                type="date"
+                                name="finalExamDate"
+                            />
+                        </label>
+                    </div>
 
                     <button
                         type="submit"
-                        className="w-fit rounded-md bg-purple-700 px-4 py-2 text-sm font-bold text-white shadow-sm hover:bg-purple-800"
+                        disabled={isPending}
+                        className="w-fit rounded-md bg-purple-700 px-4 py-2 text-sm font-bold text-white shadow-sm transition hover:bg-purple-800 disabled:cursor-not-allowed disabled:bg-slate-300"
                     >
-                        Create class
+                        {isPending ? "Creating…" : "Create class"}
                     </button>
                 </form>
             </div>
 
-            
+
         </section>
     );
 }

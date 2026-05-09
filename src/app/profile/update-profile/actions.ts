@@ -12,8 +12,13 @@ export async function updateProfile(formData: FormData) {
     const username = String(formData.get("username") ?? "").trim();
     const school = String(formData.get("school") ?? "").trim();
     const major = String(formData.get("major") ?? "").trim();
-    const year = Number(formData.get("year") ?? 0);
     const bio = String(formData.get("bio") ?? "").trim();
+
+    const yearRaw = String(formData.get("year") ?? "").trim();
+    const parsedYear = yearRaw === "" ? null : Number(yearRaw);
+    const year = parsedYear !== null && Number.isFinite(parsedYear) && parsedYear >= 0
+        ? Math.floor(parsedYear)
+        : null;
 
     const { error } = await supabaseAdmin
         .from("profiles")
@@ -21,7 +26,7 @@ export async function updateProfile(formData: FormData) {
             school: school || null,
             major: major || null,
             username: username || null,
-            year: Number.isFinite(year) ? year : 0,
+            year,
             bio: bio || null,
         })
         .eq("id", profile.id);

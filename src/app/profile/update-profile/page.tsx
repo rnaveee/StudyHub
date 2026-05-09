@@ -6,10 +6,6 @@ import { updateProfile } from "./actions";
 export default async function UpdateProfile(){
     const profile = await upsertCurrentUser();
 
-    if(!profile){
-        return;
-    }
-
     return(
         
         <section className="px-4 py-6 sm:px-6 lg:px-8">
@@ -43,6 +39,9 @@ export default async function UpdateProfile(){
                         </span>
                         <input
                             name="year"
+                            type="number"
+                            min="0"
+                            max="20"
                             defaultValue={profile.year ?? ""}
                             className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-900"
                         />

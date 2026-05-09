@@ -1,6 +1,7 @@
 import { currentUser } from "@clerk/nextjs/server";
 import Image from "next/image";
 import { upsertCurrentUser } from "../utils/uploadHelpers";
+import { getSupabaseAdmin } from "../lib/supabaseAdmin";
 import Link from "next/link";
 
 function getInitials(name: string | null) {
@@ -19,6 +20,16 @@ function getInitials(name: string | null) {
 export default async function ProfilePage() {
     const user = await currentUser();
     const profile = await upsertCurrentUser();
+    const supabaseAdmin = getSupabaseAdmin();
+
+    const { count: classesCount, error: countError } = await supabaseAdmin
+        .from("chatroom_members")
+        .select("*", { count: "exact", head: true })
+        .eq("user_id", profile.id);
+
+    if (countError) {
+        throw countError;
+    }
 
     const avatarUrl = user?.imageUrl;
 
@@ -142,7 +153,7 @@ export default async function ProfilePage() {
                                 <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
                                     Classes Taking
                                 </p>
-                                <p className="mt-1 text-2xl font-bold text-slate-950">WORK ON THIS</p>
+                                <p className="mt-1 text-2xl font-bold text-slate-950">{classesCount ?? 0}</p>
                             </div>
                         </div>
                     </aside>

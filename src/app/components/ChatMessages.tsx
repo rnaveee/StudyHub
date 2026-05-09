@@ -17,6 +17,7 @@ type ChatMessagesProps = {
 export default function ChatMessages({ chatroomId, currentUserId, initialMessages, currentUserAvatarUrl }: ChatMessagesProps){
     const [messages, setMessages] = useState<Message[]>(initialMessages);
     const [text, setText] = useState("");
+    const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
         const channel = supabase
@@ -90,9 +91,13 @@ export default function ChatMessages({ chatroomId, currentUserId, initialMessage
 
         setMessages((current) => [...current, tempMessage]);
         setText("");
+        setError(null);
 
-        sendMessage(chatroomId, formData).catch(() => {
-            console.log("error with sendMessage");
+        sendMessage(chatroomId, formData).catch((err) => {
+            console.error("sendMessage failed:", err);
+            setMessages((current) => current.filter((m) => m.id !== tempMessage.id));
+            setText(body);
+            setError("Couldn't send your message. Please try again.");
         });
     }
 
@@ -113,12 +118,20 @@ export default function ChatMessages({ chatroomId, currentUserId, initialMessage
               })}
               
             </div>
+            {error && (
+              <div className="mb-2 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                {error}
+              </div>
+            )}
             <form onSubmit={handleSubmit}>
               <input
               type="text"
               name="message"
               value={text}
-              onChange={(event) => setText(event.target.value)}
+              onChange={(event) => {
+                setText(event.target.value);
+                if (error) setError(null);
+              }}
               placeholder="Message.."
               className="w-full rounded-md border border-slate-200 px-2 py-1 text-sm outline-none focus:border-purple-400 focus:ring-2 bg-slate-300 focus:ring-purple-100"
               />

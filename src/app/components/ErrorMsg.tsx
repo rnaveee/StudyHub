@@ -23,7 +23,7 @@ export default function ErrorMsg({ message }: ErrorMsgProps) {
                 type="button"
                 aria-label="Close error message"
                 onClick={() => setIsVisible(false)}
-                className="flex h-5 w-5 shrink-0 cursor-pointer items-center justify-center rounded text-red/80 transition hover:bg-red/15 hover:text-red-500"
+                className="flex h-5 w-5 shrink-0 cursor-pointer items-center justify-center rounded text-red-700/80 transition hover:bg-red-100 hover:text-red-500"
             >
                 <span aria-hidden="true" className="text-lg leading-none">
                     &times;
