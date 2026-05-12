@@ -12,7 +12,7 @@ const messageSchema = z.object({
     message: z.preprocess(emptyToUndef, z.string().trim().max(2000))
 });
 
-export default async function sendMessage(chatroomId: string, formData: FormData){
+export async function sendMessage(chatroomId: string, formData: FormData){
     const supabaseAdmin = getSupabaseAdmin();
     const { userId } = await auth();
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import sendMessage from "../chatrooms/[chatroomId]/actions";
+import { sendMessage } from "../chatrooms/[chatroomId]/actions";
 import type { Message } from "../data";
 import UserMessage from "./UserMessage";
 import OtherUserMessage from "./OtherUserMessage";

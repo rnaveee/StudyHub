@@ -1,6 +1,8 @@
+import "server-only";
 import { currentUser } from "@clerk/nextjs/server"
 import { getSupabaseAdmin } from "../lib/supabaseAdmin";
 import { redirect } from "next/navigation";
+
 
 
 export async function upsertChatroomMember(chatroomID: string, userID: string){
