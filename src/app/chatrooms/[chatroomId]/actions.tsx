@@ -12,7 +12,11 @@ const messageSchema = z.object({
     message: z.preprocess(emptyToUndef, z.string().trim().max(2000))
 });
 
-export async function sendMessage(chatroomId: string, formData: FormData){
+export async function sendMessage(
+    chatroomId: string, 
+    formData: FormData
+):Promise<{ id: string }>{
+
     const parsed = messageSchema.safeParse({
         chatroomId: chatroomId,
         message: formData.get("message"),
@@ -47,15 +51,22 @@ export async function sendMessage(chatroomId: string, formData: FormData){
         throw new Error("You are not a member of this chatroom.");
     }
 
-    const { error } = await supabaseAdmin
+    const { data, error } = await supabaseAdmin
         .from("messages")
         .insert({
             chatroom_id: chatroomId,
             user_id: userId,
             body: message
         })
+        .select("id").single()
     
     if(error){
         throw error;
     }
+
+    if(!data){
+        throw new Error("User returned no data.");
+    }
+
+    return { id: data.id };
 }

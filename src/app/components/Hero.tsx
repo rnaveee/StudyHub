@@ -1,14 +1,6 @@
-"use client";
-
 import Link from "next/link";
-import { useAuth } from "@clerk/nextjs"
 
 export default function Hero() {
-  const { isSignedIn, isLoaded } = useAuth();
-
-  if(!isLoaded){
-    return null;
-  }
 
   return (
     <section className="px-4 py-6 sm:px-6 lg:px-8">
@@ -25,7 +17,7 @@ export default function Hero() {
 
             <div className="mt-7 flex flex-col gap-3 sm:flex-row">
               <Link
-                href={isSignedIn ? "/dashboard" : "/signin"}
+                href="/dashboard"
                 className="rounded-md bg-purple-700 px-5 py-3 text-center text-sm font-bold text-white shadow-sm hover:bg-purple-800"
               >
                 Find your class
@@ -36,7 +28,7 @@ export default function Hero() {
           <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
             <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
               <div className="flex items-center justify-between gap-4">
-                <div>
+                <div>1
                   <p className="text-sm font-bold text-purple-700">MATH101</p>
                   <p className="mt-1 font-bold text-slate-950">Calculus 1</p>
                 </div>

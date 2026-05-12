@@ -99,13 +99,19 @@ export async function upsertCurrentUser(){
         return existingProfile;
     }
 
+    const email = user.primaryEmailAddress?.emailAddress;
+    if(!email) {
+        throw new Error("Cannot create profile: user has no email address on Clerk.")
+    }
+
+    const username = user.username ?? user.fullName ?? user.id;
 
     const { data, error } = await supabaseAdmin
         .from("profiles")
         .insert({
             id: user.id,
-            username: user.username ?? user.fullName,
-            email: user.primaryEmailAddress?.emailAddress ?? null,
+            username,
+            email,
             avatar_url: user.imageUrl,
             school: 'Not set yet.',
             major: 'Not set yet.',

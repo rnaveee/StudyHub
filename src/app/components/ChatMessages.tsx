@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { sendMessage } from "../chatrooms/[chatroomId]/actions";
 import type { Message } from "../data";
 import UserMessage from "./UserMessage";
@@ -18,6 +18,15 @@ export default function ChatMessages({ chatroomId, currentUserId, initialMessage
     const [messages, setMessages] = useState<Message[]>(initialMessages);
     const [text, setText] = useState("");
     const [error, setError] = useState<string | null>(null);
+    const avatarCacheRef = useRef<Map<string, string | null>>(new Map());
+
+    useEffect(() => {
+        for (const msg of initialMessages) {
+            const profile = Array.isArray(msg.profiles) ? msg.profiles[0] : msg.profiles;
+            avatarCacheRef.current.set(msg.user_id, profile?.avatar_url ?? null);
+        }
+        avatarCacheRef.current.set(currentUserId, currentUserAvatarUrl ?? null);
+    }, []);
 
     useEffect(() => {
         const channel = supabase
@@ -28,33 +37,33 @@ export default function ChatMessages({ chatroomId, currentUserId, initialMessage
                 table: "messages",
                 filter: `chatroom_id=eq.${chatroomId}`,
             },
-            async (payload) => {
+             async (payload) => {
                 const newMessage = payload.new as Message;
 
-                if(newMessage.user_id === currentUserId){
-                    return;
-                }
+                const cached = avatarCacheRef.current.get(newMessage.user_id);
+                let avatarUrl: string | null;
 
-                const { data: profile } = await supabase
-                    .from("profiles")
-                    .select("avatar_url")
-                    .eq("id", newMessage.user_id)
-                    .maybeSingle();
+                if (cached !== undefined) {
+                    avatarUrl = cached;
+                } else {
+                    // Cache miss — fetch and store
+                    const { data: profile } = await supabase
+                        .from("profiles")
+                        .select("avatar_url")
+                        .eq("id", newMessage.user_id)
+                        .maybeSingle();
+                    avatarUrl = profile?.avatar_url ?? null;
+                    avatarCacheRef.current.set(newMessage.user_id, avatarUrl);
+                }
 
                 const messageWithProfile: Message = {
                     ...newMessage,
-                    profiles: profile,
+                    profiles: { avatar_url: avatarUrl },
                 };
 
                 setMessages((current) => {
-                    const alreadyExists = current.some(
-                        (message) => message.id === messageWithProfile.id
-                    );
-
-                    if(alreadyExists){
-                        return current;
-                    }
-
+                    const alreadyExists = current.some((m) => m.id === messageWithProfile.id);
+                    if(alreadyExists) return current;
                     return [...current, messageWithProfile];
                 });
             }
@@ -93,7 +102,18 @@ export default function ChatMessages({ chatroomId, currentUserId, initialMessage
         setText("");
         setError(null);
 
-        sendMessage(chatroomId, formData).catch((err) => {
+        sendMessage(chatroomId, formData)
+            .then(({ id: realId }) => {
+                setMessages((current) => {
+                    if (current.some((m) => m.id === realId)) {
+                        return current.filter((m) => m.id !== tempMessage.id);
+                    }
+                    return current.map((m) =>
+                        m.id === tempMessage.id ? { ...m, id: realId } : m
+                    );
+                });
+            })
+        .catch((err) => {
             console.error("sendMessage failed:", err);
             setMessages((current) => current.filter((m) => m.id !== tempMessage.id));
             setText(body);

@@ -2,22 +2,22 @@ import { joinChatroom } from "../dashboard/actions";
 
 export type SearchedChatroomCardProps = {
     chatroomId: string;
-    classId?: string;
-    className?: string;
-    professor?: string | null;
-    school?: string;
-    joinedUsers?: number;
-    isJoined?: boolean;
+    classId: string;
+    className: string;
+    professor: string | null;
+    school: string;
+    joinedUsers: number;
+    isJoined: boolean;
 }
 
 export default function SearchedChatroomCard({
     chatroomId,
-    classId = "MATH251",
-    className = "Linear Algebra",
-    professor = "Professor not listed",
-    school = "SFU",
-    joinedUsers = 0,
-    isJoined = false,
+    classId,
+    className,
+    professor,
+    school,
+    joinedUsers,
+    isJoined,
 }: SearchedChatroomCardProps){
     return(
         <div className="flex w-full flex-col gap-3 rounded-md border border-slate-200 bg-white p-3 shadow-sm sm:flex-row sm:items-center sm:justify-between">
@@ -38,9 +38,6 @@ export default function SearchedChatroomCard({
                 </h3>
                 <p className="truncate text-sm font-medium text-slate-600">
                     {professor}
-                </p>
-                <p className="mt-1 truncate text-xs text-slate-400">
-                    {chatroomId}
                 </p>
             </div>
 

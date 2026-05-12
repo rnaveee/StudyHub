@@ -21,17 +21,30 @@ export default function Header() {
           <span className="block text-sm font-medium text-slate-500">Online study rooms</span>
         </span>
       </Link>
-      <nav className="lg:mr-5">
+      <nav className="flex items-center gap-2 lg:mr-5">
         {isSignedIn ? (
-          <div className="flex rounded-md px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-purple-50 hover:text-purple-700">
-            <UserButton/>
-            <Link href="/profile" className="rounded-md px-3 py-2 text-sm hover:text-purple-700">{user.firstName}</Link>
-          </div>
+          <>
+            <Link
+              href="/dashboard"
+              className="rounded-md px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-purple-50 hover:text-purple-700"
+            >
+              Dashboard
+            </Link>
+            <Link
+              href="/profile"
+              className="rounded-md px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-purple-50 hover:text-purple-700"
+            >
+              {user.firstName}
+            </Link>
+            <UserButton />
+          </>
         ) : (
           <Link
-          href="/signin"
-          className="rounded-md px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-purple-50 hover:text-purple-700"
-          >Sign in</Link>
+            href="/signin"
+            className="rounded-md px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-purple-50 hover:text-purple-700"
+          >
+            Sign in
+          </Link>
         )}
       </nav>
     </header>

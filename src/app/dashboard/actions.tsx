@@ -21,8 +21,10 @@ const courseSchema = z.object({
 });
 
 const searchSchema = z.object({
-    query: z.string().toLowerCase().trim().max(100),
+    query: z.string().toLowerCase().trim().max(100)
+        .transform((s) => s.replace(/[,()"]/g, "")),
     school: z.string().toLowerCase().trim().max(100)
+        .transform((s) => s.replace(/[,()"]/g, "")),
 });
 
 const chatroomIdSchema = z.uuid();
