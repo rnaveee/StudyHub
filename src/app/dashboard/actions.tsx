@@ -5,30 +5,55 @@ import { redirect } from "next/navigation"
 import { upsertChatroom, upsertChatroomMember, upsertCourse, upsertCurrentUser } from "../utils/uploadHelpers";
 import { getSupabaseAdmin } from "../lib/supabaseAdmin";
 import type { SearchResult } from "../data";
+import { z } from "zod";
 
 export type CreateChatroomState = { error: string | null };
+
+const emptyToUndef = (v: unknown) =>
+    typeof v === "string" && v.trim() === "" ? undefined : v;
+
+const courseSchema = z.object({
+    classId: z.preprocess(emptyToUndef, z.string().trim().max(20)),
+    className: z.preprocess(emptyToUndef, z.string().trim().max(100)),
+    professor: z.preprocess(emptyToUndef, z.string().trim().max(50).optional()),
+    school: z.preprocess(emptyToUndef, z.string().trim().max(100)),
+    finalExamDate: z.preprocess(emptyToUndef, z.iso.date().optional())
+});
+
+const searchSchema = z.object({
+    query: z.string().toLowerCase().trim().max(100),
+    school: z.string().toLowerCase().trim().max(100)
+});
+
+const chatroomIdSchema = z.uuid();
 
 export async function createChatroom(
     prevState: CreateChatroomState,
     formData: FormData
 ): Promise<CreateChatroomState> {
+
+    const courseParsed = courseSchema.safeParse({
+        classId: formData.get("classId"),
+        className: formData.get("className"),
+        professor: formData.get("professor"),
+        school: formData.get("school"),
+        finalExamDate: formData.get("finalExamDate"),
+    });
+
+    if (!courseParsed.success) {
+        const first = courseParsed.error.issues[0];
+        return { error: `${first.path.join(".") || "input"}: ${first.message}` };
+    }
+
+    const { classId, className, professor, school, finalExamDate } = courseParsed.data;
+
     const profile = await upsertCurrentUser();
     const supabaseAdmin = getSupabaseAdmin();
-
-    const classID = String(formData.get("classId") ?? "").trim();
-    const className = String(formData.get("className") ?? "").trim();
-    const professor = String(formData.get("professor") ?? "").trim();
-    const school = String(formData.get("school") ?? "").trim();
-    const finalExamDate = String(formData.get("finalExamDate") ?? "").trim() || null;
-
-    if (!classID || !className || !school) {
-        return { error: "Missing required class fields." };
-    }
 
     const { data: existingCourse, error: existingCourseError } = await supabaseAdmin
         .from("courses")
         .select("id")
-        .eq("class_id", classID)
+        .eq("class_id", classId)
         .eq("school", school)
         .maybeSingle();
 
@@ -39,15 +64,15 @@ export async function createChatroom(
     if (existingCourse) {
         return { error: "A chatroom already exists for that class and school. Try searching for it!" };
     }
-
+    
     let chatroomId: string;
     try {
         const course = await upsertCourse(
-            classID,
+            classId,
             className,
-            professor,
+            professor ?? null,
             school,
-            finalExamDate,
+            finalExamDate ?? null,
             profile.id
         );
         const chatroom = await upsertChatroom(course.id, profile.id);
@@ -63,11 +88,18 @@ export async function createChatroom(
 }
 
 export async function joinChatroom(formData: FormData) {
-    const chatroomId = String(formData.get("chatroomId") ?? "").trim();
+    
+    const chatroomIdParsed = chatroomIdSchema.safeParse(
+        formData.get("chatroomId")
+    );
 
-    if (!chatroomId) {
-        redirect("/dashboard?error=Missing%20chatroom%20id.");
+    if (!chatroomIdParsed.success) {
+        const first = chatroomIdParsed.error.issues[0];
+        const message = `${first.path.join(".") || "input"}: ${first.message}`;
+        redirect(`/dashboard?error=${encodeURIComponent(message)}`);
     }
+
+    const chatroomId = chatroomIdParsed.data;
 
     const profile = await upsertCurrentUser();
 
@@ -83,12 +115,19 @@ export async function joinChatroom(formData: FormData) {
 }
 
 export async function searchChatrooms(formData: FormData): Promise<SearchResult[]> {
-    const query = String(formData.get("query") ?? "").trim();
-    const school = String(formData.get("school") ?? "").trim();
-    const normalizedQuery = query.toLowerCase();
-    const normalizedSchool = school.toLowerCase();
 
-    if(normalizedQuery === "" && normalizedSchool === ""){
+    const searchParsed = searchSchema.safeParse({
+        query: formData.get("query"),
+        school: formData.get("school")
+    });
+
+    if(!searchParsed.success) {
+        return [];
+    }
+
+    const { query, school } = searchParsed.data;
+
+    if(query === "" && school === ""){
         return [];
     }
 
@@ -114,14 +153,14 @@ export async function searchChatrooms(formData: FormData): Promise<SearchResult[
         `)
         .limit(20);
     
-    if(normalizedQuery){
+    if(query){
         q = q.or(
-            `class_id.ilike.%${normalizedQuery}%,class_name.ilike.%${normalizedQuery}%`,
+            `class_id.ilike.%${query}%,class_name.ilike.%${query}%`,
             { foreignTable: "courses" }
         );
     }
-    if(normalizedSchool){
-        q = q.ilike("courses.school", `%${normalizedSchool}%`)
+    if(school){
+        q = q.ilike("courses.school", `%${school}%`)
     }
     
     const {data: chatrooms, error: queryError} = await q;

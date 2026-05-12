@@ -1,14 +1,21 @@
 
+import ErrorMsg from "../../components/ErrorMsg";
 import { upsertCurrentUser } from "../../utils/uploadHelpers";
 import { updateProfile } from "./actions";
 
 
-export default async function UpdateProfile(){
+export default async function UpdateProfile({
+    searchParams,
+}: {
+    searchParams: Promise<{ error?: string }>;
+}) {
     const profile = await upsertCurrentUser();
+    const errorMessage = (await searchParams).error;
 
     return(
-        
+
         <section className="px-4 py-6 sm:px-6 lg:px-8">
+            <ErrorMsg message={errorMessage} />
             <div className="w-full rounded-lg border border-slate-200 bg-white p-3 shadow-sm">
                 <form action={updateProfile} className="mt-4 grid gap-3 sm:grid-cols-2">
                     <label className="rounded-md border border-slate-200 bg-slate-50 p-3">

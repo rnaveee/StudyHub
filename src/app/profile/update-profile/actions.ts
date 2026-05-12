@@ -2,32 +2,49 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { z } from "zod";
 import { getSupabaseAdmin } from "../../lib/supabaseAdmin";
 import { upsertCurrentUser } from "../../utils/uploadHelpers";
 
+const emptyToUndef = (v: unknown) =>
+    typeof v === "string" && v.trim() === "" ? undefined : v;
+
+const ProfileUpdateSchema = z.object({
+    username: z.preprocess(emptyToUndef, z.string().trim().min(3).max(30).optional()),
+    school: z.preprocess(emptyToUndef, z.string().trim().max(100).optional()),
+    major: z.preprocess(emptyToUndef, z.string().trim().max(100).optional()),
+    bio: z.preprocess(emptyToUndef, z.string().trim().max(500).optional()),
+    year: z.preprocess(emptyToUndef, z.coerce.number().int().min(1).max(8).optional()),
+});
+
 export async function updateProfile(formData: FormData) {
     const profile = await upsertCurrentUser();
-    const supabaseAdmin = getSupabaseAdmin();
 
-    const username = String(formData.get("username") ?? "").trim();
-    const school = String(formData.get("school") ?? "").trim();
-    const major = String(formData.get("major") ?? "").trim();
-    const bio = String(formData.get("bio") ?? "").trim();
+    const parsed = ProfileUpdateSchema.safeParse({
+        username: formData.get("username"),
+        school: formData.get("school"),
+        major: formData.get("major"),
+        bio: formData.get("bio"),
+        year: formData.get("year"),
+    });
 
-    const yearRaw = String(formData.get("year") ?? "").trim();
-    const parsedYear = yearRaw === "" ? null : Number(yearRaw);
-    const year = parsedYear !== null && Number.isFinite(parsedYear) && parsedYear >= 0
-        ? Math.floor(parsedYear)
-        : null;
+    if (!parsed.success) {
+        const first = parsed.error.issues[0];
+        const field = first.path.join(".") || "input";
+        const message = `${field}: ${first.message}`;
+        redirect(`/profile/update-profile?error=${encodeURIComponent(message)}`);
+    }
 
-    const { error } = await supabaseAdmin
+    const { username, school, major, bio, year } = parsed.data;
+
+    const { error } = await getSupabaseAdmin()
         .from("profiles")
         .update({
-            school: school || null,
-            major: major || null,
-            username: username || null,
-            year,
-            bio: bio || null,
+            username: username ?? null,
+            school: school ?? null,
+            major: major ?? null,
+            bio: bio ?? null,
+            year: year ?? null,
         })
         .eq("id", profile.id);
 

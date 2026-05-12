@@ -6,6 +6,7 @@ import type { Chatroom } from "../data";
 import { getSupabaseAdmin } from "../lib/supabaseAdmin";
 import { currentUser } from "@clerk/nextjs/server";
 import ErrorMsg from "../components/ErrorMsg";
+import { redirect } from "next/navigation";
 
 
 export default async function Dashboard({
@@ -18,7 +19,7 @@ export default async function Dashboard({
     const errorMessage = (await searchParams).error;
 
     if(!user){
-        return;
+        redirect("/signin");
     }
 
     const supabaseAdmin = getSupabaseAdmin();
