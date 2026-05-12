@@ -18,8 +18,6 @@ const ProfileUpdateSchema = z.object({
 });
 
 export async function updateProfile(formData: FormData) {
-    const profile = await upsertCurrentUser();
-
     const parsed = ProfileUpdateSchema.safeParse({
         username: formData.get("username"),
         school: formData.get("school"),
@@ -36,6 +34,8 @@ export async function updateProfile(formData: FormData) {
     }
 
     const { username, school, major, bio, year } = parsed.data;
+
+    const profile = await upsertCurrentUser();
 
     const { error } = await getSupabaseAdmin()
         .from("profiles")

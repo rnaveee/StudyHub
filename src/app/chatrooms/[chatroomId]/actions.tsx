@@ -13,14 +13,11 @@ const messageSchema = z.object({
 });
 
 export async function sendMessage(chatroomId: string, formData: FormData){
-    const supabaseAdmin = getSupabaseAdmin();
-    const { userId } = await auth();
-
     const parsed = messageSchema.safeParse({
         chatroomId: chatroomId,
         message: formData.get("message"),
     });
-    
+
     if (!parsed.success) {
         const first = parsed.error.issues[0];
         throw new Error(`${first.path.join(".") || "input"}: ${first.message}`);
@@ -28,9 +25,12 @@ export async function sendMessage(chatroomId: string, formData: FormData){
 
     const { message } = parsed.data;
 
+    const { userId } = await auth();
     if(!userId){
         throw new Error("You must be signed in to send messages.");
     }
+
+    const supabaseAdmin = getSupabaseAdmin();
 
     const { data: membership, error: membershipError } = await supabaseAdmin
         .from("chatroom_members")
