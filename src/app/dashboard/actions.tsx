@@ -181,6 +181,7 @@ export async function searchChatrooms(formData: FormData): Promise<SearchResult[
             )
         `)
         .limit(20);
+        
 
     if(query){
         q = q.or(

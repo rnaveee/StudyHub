@@ -14,6 +14,14 @@ type ChatMessagesProps = {
     initialMessages: Message[];
 };
 
+function handleKeyDown(event: React.KeyboardEvent<HTMLTextAreaElement>) {
+    if (event.key === "Enter" && !event.shiftKey) {
+        event.preventDefault();
+        event.currentTarget.form?.requestSubmit();
+    }
+}
+
+
 export default function ChatMessages({ chatroomId, currentUserId, initialMessages, currentUserAvatarUrl }: ChatMessagesProps){
     const [messages, setMessages] = useState<Message[]>(initialMessages);
     const [text, setText] = useState("");
@@ -120,6 +128,7 @@ export default function ChatMessages({ chatroomId, currentUserId, initialMessage
             setError("Couldn't send your message. Please try again.");
         });
     }
+    
 
     return(
         <div className="mt-4 rounded-md border border-dashed border-slate-200 bg-slate-200 p-3 flex flex-col">
@@ -144,17 +153,26 @@ export default function ChatMessages({ chatroomId, currentUserId, initialMessage
               </div>
             )}
             <form onSubmit={handleSubmit}>
-              <input
-              type="text"
-              name="message"
-              value={text}
-              onChange={(event) => {
+              <textarea
+                name="message"
+                rows={1}
+                value={text}
+                onChange={(event) => {
                 setText(event.target.value);
                 if (error) setError(null);
-              }}
-              placeholder="Message.."
-              className="w-full rounded-md border border-slate-200 px-2 py-1 text-sm outline-none focus:border-purple-400 focus:ring-2 bg-slate-300 focus:ring-purple-100"
-              />
+                }}
+                onKeyDown={handleKeyDown}
+                placeholder="Message.."
+
+                className="w-full resize-none 
+                field-sizing-content max-h-32 
+                overflow-y-auto rounded-md border 
+                border-slate-200 px-2 py-1 text-sm 
+                outline-none 
+                focus:border-purple-400 
+                focus:ring-2 bg-slate-300 
+                focus:ring-purple-100"
+            />
             </form>
         </div>
     );
