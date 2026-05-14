@@ -38,17 +38,21 @@ export default async function ChatroomPage({params,}: {params: Promise<{ chatroo
           class_id,
           class_name,
           professor,
-          school,
-          final_exam_date
+          final_exam_date,
+          schools(
+            id,
+            name,
+            color
+          )
         )
       `)
       .eq("id", chatroomId)
       .single();
-  
+
   if (chatroomError || !chatroom) {
     redirect("/dashboard?error=Chatroom%20not%20found.");
   }
-  
+
   const course = Array.isArray(chatroom.courses)
   ? chatroom.courses[0]
   : chatroom.courses;
@@ -56,6 +60,10 @@ export default async function ChatroomPage({params,}: {params: Promise<{ chatroo
   if (!course) {
     redirect("/dashboard?error=Chatroom%20course%20error.");
   }
+
+  const schoolRow = Array.isArray(course.schools)
+    ? course.schools[0]
+    : course.schools;
 
   const { data: messages, error: messageError } = await supabaseAdmin
     .from("messages")
@@ -89,8 +97,15 @@ export default async function ChatroomPage({params,}: {params: Promise<{ chatroo
               <p className="text-lg font-bold uppercase tracking-wide text-purple-700">
                 {classID}
               </p>
-              <div className="rounded-full border border-red-200 bg-red-50 px-3 py-1 text-xs font-bold text-red-700">
-                {course.school ?? "Unknown school"}
+              <div
+                className="rounded-full border bg-red-50 px-3 py-1 text-xs font-bold"
+                style={
+                    schoolRow
+                        ? { borderColor: schoolRow.color, color: schoolRow.color }
+                        : undefined
+                }
+              >
+                {schoolRow?.name ?? "Unknown school"}
               </div>
             </div>
             <h1 className="mt-1 text-2xl sm:text-lg font-bold tracking-tight text-slate-950">

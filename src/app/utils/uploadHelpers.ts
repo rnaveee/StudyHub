@@ -49,23 +49,23 @@ export async function upsertCourse(
     classID: string,
     className: string,
     professor: string | null,
-    school: string,
+    schoolId: string,
     finalExamDate: string | null,
     createdBy: string,
     ){
         const supabaseAdmin = getSupabaseAdmin();
-    
+
         const { data: course, error } = await supabaseAdmin
             .from("courses")
             .upsert({
                 class_id: classID,
                 class_name: className,
                 professor: professor,
-                school: school,
+                school_id: schoolId,
                 final_exam_date: finalExamDate,
                 created_by: createdBy,
             },
-            { onConflict: "school,class_id", })
+            { onConflict: "school_id,class_id", })
             .select()
             .single();
         

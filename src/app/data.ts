@@ -1,10 +1,16 @@
 
+export type School = {
+  id: string;
+  name: string;
+  color: string;
+};
+
 export type Course = {
   id: string;
   classID: string;
   className: string;
   professor: string;
-  school: string;
+  school: School;
   finalsDate: string;
 };
 
@@ -32,7 +38,7 @@ export type SearchResult = {
   classId: string;
   className: string;
   professor: string | null;
-  school: string;
+  school: School;
   joinedUsers: number;
   isJoined: boolean;
 };

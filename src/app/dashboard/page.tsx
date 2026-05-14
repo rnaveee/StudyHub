@@ -33,6 +33,15 @@ export default async function Dashboard({
         throw membershipsError;
     }
 
+    const { data: schools, error: schoolsError } = await supabaseAdmin
+        .from("schools")
+        .select("id, name")
+        .order("name");
+
+    if (schoolsError) {
+        throw schoolsError;
+    }
+
     const joinedChatroomIds = memberships.map((membership) => membership.chatroom_id);
 
     const { data, error } = await supabaseAdmin
@@ -48,12 +57,16 @@ export default async function Dashboard({
                 class_id,
                 class_name,
                 professor,
-                school,
-                final_exam_date
+                final_exam_date,
+                schools (
+                    id,
+                    name,
+                    color
+                )
             )
         `)
     .in("id", joinedChatroomIds);
-    
+
     if(error){
         throw error;
     }
@@ -66,6 +79,14 @@ export default async function Dashboard({
                 return null;
             }
 
+            const schoolRow = Array.isArray(course.schools)
+                ? course.schools[0]
+                : course.schools;
+
+            if (!schoolRow) {
+                return null;
+            }
+
             return {
                 id: row.id,
                 joinedUsers: row.chatroom_members?.length ?? 0,
@@ -75,7 +96,11 @@ export default async function Dashboard({
                     classID: course.class_id,
                     className: course.class_name,
                     professor: course.professor ?? "Professor not listed",
-                    school: course.school,
+                    school: {
+                        id: schoolRow.id,
+                        name: schoolRow.name,
+                        color: schoolRow.color,
+                    },
                     finalsDate: course.final_exam_date ?? "",
                 },
             };
@@ -94,7 +119,7 @@ export default async function Dashboard({
                         ))}
                     </div>
                     <div className="w-full flex flex-col gap-4">
-                        <ClassSearch />
+                        <ClassSearch schools={schools} />
                         <CreateClass />
                     </div>
                 </div>

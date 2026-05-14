@@ -2,6 +2,8 @@
 import ErrorMsg from "../../components/ErrorMsg";
 import { upsertCurrentUser } from "../../utils/uploadHelpers";
 import { updateProfile } from "./actions";
+import { getSupabaseAdmin } from "../../lib/supabaseAdmin";
+
 
 
 export default async function UpdateProfile({
@@ -10,7 +12,21 @@ export default async function UpdateProfile({
     searchParams: Promise<{ error?: string }>;
 }) {
     const profile = await upsertCurrentUser();
+
+    const {data: schools, error: schoolsError} = await getSupabaseAdmin()
+        .from("schools")
+        .select("id, name")
+        .order("name");
+    if(schoolsError){
+        throw schoolsError;
+    }
+
+    const currentSchoolName =
+        schools.find((s) => s.id === profile.school_id)?.name ?? "";
+
     const errorMessage = (await searchParams).error;
+
+
 
     return(
 
@@ -34,10 +50,19 @@ export default async function UpdateProfile({
                             School
                         </span>
                         <input
-                            name="school"
-                            defaultValue={profile.school ?? ""}
+                            type="text"
+                            name="schoolName"
+                            list="profile-schools-list"
+                            defaultValue={currentSchoolName}
+                            placeholder="Start typing your school..."
+                            autoComplete="off"
                             className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-900"
                         />
+                        <datalist id="profile-schools-list">
+                            {schools.map((school) => (
+                                <option key={school.id} value={school.name} />
+                            ))}
+                        </datalist>
                     </label>
 
                     <label className="rounded-md border border-slate-200 bg-slate-50 p-3">

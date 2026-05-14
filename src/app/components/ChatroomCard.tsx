@@ -18,8 +18,11 @@ export default function ChatroomCard({ chatroom }: ChatroomCardProps) {
           <span className="rounded-md bg-purple-50 px-2.5 py-1 text-sm font-bold uppercase tracking-wide text-purple-700">
             {chatroom.course.classID}
           </span>
-          <span className="rounded-md border border-red-200 px-2.5 py-1 text-sm font-semibold text-red-600">
-            {chatroom.course.school}
+          <span
+            className="rounded-md border px-2.5 py-1 text-sm font-semibold"
+            style={{ borderColor: chatroom.course.school.color, color: chatroom.course.school.color }}
+          >
+            {chatroom.course.school.name}
           </span>
         </div>
         <span className="shrink-0 rounded-full border border-green-200 bg-green-50 px-3 py-1 text-xs font-bold text-green-700">

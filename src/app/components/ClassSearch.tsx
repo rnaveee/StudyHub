@@ -5,7 +5,11 @@ import SearchedChatroomCard from "./SearchedChatroomCard";
 import { searchChatrooms } from "../dashboard/actions";
 import type { SearchResult } from "../data";
 
-export default function ClassSearch() {
+type ClassSearchProps = {
+  schools: { id: string; name: string }[];
+};
+
+export default function ClassSearch({ schools }: ClassSearchProps) {
   const [results, setResults] = useState<SearchResult[]>([]);
   const [hasSearched, setHasSearched] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -30,7 +34,7 @@ export default function ClassSearch() {
       <h2 className="text-xl font-bold tracking-tight text-slate-950">Search classrooms</h2>
 
       <form action={handleSearch}>
-        <div className="mt-4 grid gap-3 sm:grid-cols-[minmax(0,1fr)_9rem]">
+        <div className="mt-4 grid gap-3 sm:grid-cols-[minmax(0,2fr)_minmax(0,1.5fr)]">
           <label className="block">
             <span className="mb-1 block text-sm font-semibold text-slate-700">Class</span>
             <input
@@ -47,8 +51,15 @@ export default function ClassSearch() {
               type="text"
               placeholder="SFU"
               name="school"
+              list="schools-list"
+              autoComplete="off"
               className="w-full rounded-md border border-slate-200 px-3 py-2 text-sm outline-none focus:border-purple-400 focus:ring-2 focus:ring-purple-100"
             />
+            <datalist id="schools-list">
+              {schools.map((school) => (
+                <option key={school.id} value={school.name} />
+              ))}
+            </datalist>
           </label>
         </div>
 

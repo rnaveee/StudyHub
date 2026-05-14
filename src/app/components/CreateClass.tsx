@@ -41,19 +41,6 @@ export default function CreateClass(){
                         </label>
                     </div>
 
-                    <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_9rem]">
-
-                        <label className="block">
-                            <span className="mb-1 block text-sm font-semibold text-slate-700">School</span>
-                            <input
-                                className="w-full rounded-md border border-slate-200 px-3 py-2 text-sm outline-none focus:border-purple-400 focus:ring-2 focus:ring-purple-100"
-                                type="text"
-                                name="school"
-                                placeholder="SFU"
-                                required
-                            />
-                        </label>
-                    </div>
                     <div>
                         <h2 className="text-xl font-bold tracking-tight text-slate-950">Other details</h2>
                         <p className="text-sm text-slate-500">You can add these later.</p>

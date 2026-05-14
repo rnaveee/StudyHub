@@ -5,7 +5,11 @@ export type SearchedChatroomCardProps = {
     classId: string;
     className: string;
     professor: string | null;
-    school: string;
+    school: {
+        id: string;
+        name: string;
+        color: string;
+    };
     joinedUsers: number;
     isJoined: boolean;
 }
@@ -26,8 +30,11 @@ export default function SearchedChatroomCard({
                     <span className="rounded-md bg-purple-50 px-2.5 py-1 text-sm font-bold uppercase tracking-wide text-purple-700">
                         {classId}
                     </span>
-                    <span className="rounded-md border border-red-200 px-2.5 py-1 text-sm font-semibold text-red-600">
-                        {school}
+                    <span
+                        className="rounded-md border px-2.5 py-1 text-sm font-semibold"
+                        style={{ borderColor: school.color, color: school.color }}
+                    >
+                        {school.name}
                     </span>
                     <span className="rounded-full border border-green-200 bg-green-50 px-3 py-1 text-xs font-bold text-green-700">
                         {joinedUsers} joined users

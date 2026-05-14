@@ -31,6 +31,21 @@ export default async function ProfilePage() {
         throw countError;
     }
 
+    let schoolName: string | null = null;
+    if (profile.school_id) {
+        const { data: school, error: schoolError } = await supabaseAdmin
+            .from("schools")
+            .select("name")
+            .eq("id", profile.school_id)
+            .maybeSingle();
+
+        if (schoolError) {
+            throw schoolError;
+        }
+
+        schoolName = school?.name ?? null;
+    }
+
     const avatarUrl = user?.imageUrl;
 
     const username = profile.username ?? "StudyHub student";
@@ -46,7 +61,7 @@ export default async function ProfilePage() {
 
     const profileRows = [
         { label: "Email", value: profile.email ?? "No email connected" },
-        { label: "School", value: profile.school ?? "Not set yet" },
+        { label: "School", value: schoolName ?? "Not set yet" },
         { label: "Year", value: profile.year || "Not set yet" },
         { label: "Member since", value: memberSince },
     ];
