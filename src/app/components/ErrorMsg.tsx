@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 type ErrorMsgProps = {
     message?: string | null;
@@ -8,6 +8,10 @@ type ErrorMsgProps = {
 
 export default function ErrorMsg({ message }: ErrorMsgProps) {
     const [isVisible, setIsVisible] = useState(true);
+
+    useEffect(() => {
+        setIsVisible(true);
+    }, [message]);
 
     if (!message || !isVisible) {
         return null;

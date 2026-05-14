@@ -47,7 +47,7 @@ export default async function ProfilePage() {
     const profileRows = [
         { label: "Email", value: profile.email ?? "No email connected" },
         { label: "School", value: profile.school ?? "Not set yet" },
-        { label: "Year", value: profile.year ?? 0 },
+        { label: "Year", value: profile.year || "Not set yet" },
         { label: "Member since", value: memberSince },
     ];
 

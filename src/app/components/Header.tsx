@@ -1,14 +1,10 @@
-"use client";
 
 import Link from "next/link";
-import { UserButton, useUser } from "@clerk/nextjs"
+import { UserButton } from "@clerk/nextjs"
+import { currentUser } from "@clerk/nextjs/server";
 
-export default function Header() {
-  const {isSignedIn, user, isLoaded} = useUser();
-
-  if(!isLoaded) {
-    return null;
-  }
+export default async function Header() {
+  const user = await currentUser()
 
   return (
     <header className="flex w-full items-center justify-between border-b border-slate-300 bg-white px-3 py-3 text-slate-950">
@@ -22,7 +18,7 @@ export default function Header() {
         </span>
       </Link>
       <nav className="flex items-center gap-2 lg:mr-5">
-        {isSignedIn ? (
+        {user ? (
           <>
             <Link
               href="/dashboard"

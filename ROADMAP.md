@@ -1,180 +1,239 @@
 # StudyHub Roadmap
 
-A learning-oriented checklist for features and backend improvements. Items are organized by tier — finish a tier before moving to the next.
+A learning-oriented checklist aligned with the product vision in `README.md`. Items grouped by tier — finish a tier before moving on.
+
+**Product north star.** StudyHub is a class-specific group-chat tool, scoped to a school. The two things that make it different from Instagram DMs or Discord are: (1) you can only join a class chatroom if your declared school matches, and (2) duplicate chatrooms can't exist — one per (class, school), and the creator owns it. Everything below either supports those rules or adds the chat features students actually want.
 
 ---
 
-## Foundations — do these before piling on features
+## Tier 0 — Foundations (✅ complete)
 
-These aren't user-visible but they enable everything else. Skipping them means rewriting a lot of code in 3 months.
+These aren't user-visible but they enable everything else. All done — leaving them here as a learning record.
 
-### F1. Row Level Security (RLS) policies
+- [x] **F4. Database indexes** — B-tree indexes on hot filter columns (`chatroom_members.user_id`, `chatroom_members.chatroom_id`, `messages(chatroom_id, created_at DESC)`, `courses(school, class_id)`).
+- [x] **F2. Push search filtering into the database** — `searchChatrooms` now uses `.or()` + `.ilike()` with `foreignTable: "courses"` and `.limit(20)`. No more fetch-all-and-filter-in-JS.
+- [x] **F3. Input validation with Zod** — every server action (`createChatroom`, `joinChatroom`, `searchChatrooms`, `sendMessage`, `updateProfile`) parses `formData` through a schema before doing any work. Cheap path (parse) runs before expensive path (auth).
+- [x] **F1. Row Level Security (RLS) policies** — RLS enabled on all tables. Custom Postgres function `current_user_id()` reads the Clerk JWT (`auth.jwt() ->> 'sub'`) since we use Clerk, not Supabase Auth. Policies cover SELECT/INSERT/UPDATE/DELETE per table.
+- [x] **B2. Database migrations** — `db/migrations/001_initial.sql` captures the full baseline (5 tables, indexes, `current_user_id()` function, 14 RLS policies). Wrapped in `BEGIN`/`COMMIT` for atomicity.
+- [x] **B3. Environment variable validation** — `src/app/lib/env.ts` (public) and `env.server.ts` (server-only, with `import "server-only"`) parse `process.env` through Zod at module load. Catches missing keys at boot, not at first user action. Uses explicit key references so Next.js can do build-time replacement on the client.
 
-**Why now.** Right now, every server action uses the service-role key, which bypasses Postgres's permission system entirely. That's fine when you only have one developer and a small surface — but the moment you add features like friends, DMs, or message deletion, "user A can only mutate user A's data" needs to be enforced *in the database*, not just trusted in app code. One forgotten check leaks data.
+---
 
-**Concept.** RLS policies are SQL-defined predicates that Postgres applies to every query. Example: `messages` policy "users can SELECT only messages from chatrooms they're a member of" lets you safely use the anon client without writing manual auth checks in every server action.
+## Tier 1 — Quick polish (~30 min, in progress)
 
-**How to implement.**
-1. In Supabase Studio → Authentication → Policies, enable RLS on each table.
-2. Write policies for each operation (SELECT, INSERT, UPDATE, DELETE) using `auth.uid()` to identify the requesting user.
-3. Replace `getSupabaseAdmin()` with the anon client for queries that should respect user scope.
-4. Keep service-role only for admin-only operations (e.g., onboarding new users).
+Small wins from the recent app review. The kind of papercuts users won't file a bug for but quietly notice.
 
-**Difficulty:** Medium. The first table is hardest; the rest follow patterns.
+- [ ] **Validate final exam date is in the future.** One `.refine()` on the Zod `courseSchema`. Stops chatrooms being created for classes that ended last year. *(currently up next)*
+- [ ] **Replace `0` and `"Not set yet."` placeholders with `null` + UI fallback.** Right now new profiles write fake-looking data (`year: 0`, `school: 'Not set yet.'`) to the DB. Cleaner: leave the column empty and let the UI render "Not set" or an edit prompt.
+- [ ] **Server-render `Hero` and `Header`.** Both have `"use client"` for one boolean (signed-in or not). Move to server components via Clerk's `currentUser()` — drops JS bundle weight and removes a brief hydration flash.
 
-### F2. Push search filtering into the database
+---
 
-**Why now.** Right now `searchChatrooms` fetches the entire chatrooms table and filters in JavaScript. Once you add fuzzy search and the table grows past a few hundred rows, this is the first thing that gets slow.
+## Tier 2 — Core product features (the things in README "Users")
 
-**How.** Replace the fetch-all + JS-filter pattern with `.ilike('courses.class_name', '%query%')` (or `pg_trgm` similarity once you add fuzzy — see B1 below).
+These are what makes StudyHub *StudyHub* and not just a generic chat app. None of them are optional for the product vision.
 
-**Concept:** WHERE-clause filtering uses indexes; in-memory filtering doesn't.
+### 2A. School-gated join
 
-**Difficulty:** Small. ~20 lines.
+**Why this is a flagship feature.** The README's whole pitch is "the whole class stays unified" — that only works if outsiders can't lurk. Right now anyone can `joinChatroom` if they know the chatroom id.
 
-### F3. Input validation with Zod
-
-**Why now.** Server actions currently use `String(formData.get("foo") ?? "").trim()` everywhere. That's fine for one-off fields but doesn't scale — no length limits, no shape enforcement, no good error messages.
+**Concept (ELI5).** A class chatroom belongs to a school. To join, your profile's `school` field has to match. Think of it like flashing your student ID at the door of a study room — the door doesn't care who you are, just that the school on the card matches.
 
 **How.**
-1. `npm install zod`.
-2. Define a schema per server action: `const CreateChatroomSchema = z.object({ classId: z.string().min(1).max(20), ... })`.
-3. Parse FormData via `Object.fromEntries(formData)` then `schema.safeParse(...)`.
-4. Map validation errors to the existing `{ error }` state.
-
-**Concept:** schemas are *contracts* you write once and reuse — for runtime validation *and* TypeScript types (via `z.infer<typeof Schema>`).
-
-**Difficulty:** Small once you've done one action; tedious to retrofit all of them.
-
-### F4. Database indexes
-
-**Why now.** A handful of `.eq("user_id", ...)` and `.eq("chatroom_id", ...)` queries run on every page. Without indexes, each one is a full table scan.
-
-**How.** In Supabase Studio → SQL editor:
-```sql
-CREATE INDEX idx_chatroom_members_user_id ON chatroom_members(user_id);
-CREATE INDEX idx_chatroom_members_chatroom_id ON chatroom_members(chatroom_id);
-CREATE INDEX idx_messages_chatroom_created ON messages(chatroom_id, created_at DESC);
-CREATE INDEX idx_courses_school_class ON courses(school, class_id);
-```
-
-**Concept.** Postgres's query planner uses indexes to skip rows it doesn't need. For sorted queries (the messages one), a multi-column index also serves the ordering.
-
-**Difficulty:** Tiny. Five minutes.
-
----
-
-## Your feature list
-
-### 1. Delete message
-
-**Data model decision: soft vs hard delete.**
-- **Hard delete:** remove the row. Simple, but breaks reply context, audit trails, and "X deleted a message" UX.
-- **Soft delete:** add `deleted_at TIMESTAMPTZ NULL` column. Show "[deleted]" placeholder in UI. Preserves message thread integrity.
-
-**Recommendation: soft delete.** Industry standard.
-
-**Implementation outline:**
-1. Migration: `ALTER TABLE messages ADD COLUMN deleted_at TIMESTAMPTZ NULL;`
-2. New server action `deleteMessage(formData)`: validate user is the message author *server-side* (don't trust the client), set `deleted_at = NOW()`, never delete the row.
-3. UI: hover state on own messages → trash icon → confirm → submit form to action.
-4. Render: if `deleted_at !== null`, render greyed-out "[message deleted]" instead of the body.
-5. Realtime: extend the subscription in `ChatMessages.tsx` to listen for `UPDATE` events too (currently only `INSERT`), and update the matching message in state.
+1. New RLS policy on `chatroom_members` for INSERT: `EXISTS (SELECT 1 FROM chatrooms c JOIN courses co ON co.id = c.course_id JOIN profiles p ON p.id = current_user_id() WHERE c.id = chatroom_id AND co.school = p.school)`.
+2. Same check duplicated in the `joinChatroom` server action for a clean error message (RLS would just reject silently otherwise).
+3. UI: if a search result is a different school, show "Different school" instead of a "Join" button.
 
 **Concepts to learn:**
-- Authorization vs authentication (auth.uid() === message.user_id)
-- Soft delete pattern
-- Realtime UPDATE events (different from INSERT)
+- Defense in depth — server action *and* RLS, not one or the other.
+- The difference between *authentication* (you're signed in) and *authorization* (you're allowed to do this thing).
 
-**Difficulty:** Small.
+**Difficulty:** Small-medium.
 
-### 2. Image posting in group chat
+### 2B. Change-school cascade
 
-**Architecture: Postgres holds metadata, Supabase Storage holds bytes.** Don't put image binaries in your database.
+**Why.** README: "If they change their declared school, it kicks them out of all the chatrooms they are in that school for." Without this, school-gating has a giant hole — change school once, stay in the old chatrooms forever.
+
+**How.**
+1. In `updateProfile`, when `school` changes, run a `DELETE FROM chatroom_members WHERE user_id = $me AND chatroom_id IN (SELECT c.id FROM chatrooms c JOIN courses co ON co.id = c.course_id WHERE co.school = $old_school)`.
+2. Wrap the profile update + delete in a transaction (use an `rpc` Postgres function for atomicity).
+3. Confirm in UI: "Changing schools will remove you from N chatrooms. Continue?"
+
+**Concepts to learn:**
+- Transactions — either both changes happen or neither does.
+- Cascading side-effects vs surprising the user. The confirm modal is product, not code.
+
+**Difficulty:** Medium.
+
+### 2C. Owner / Moderator roles
+
+**Why.** README: chatroom creator owns it; owners can pick moderators with the same privileges except they can't remove the owner or each other.
+
+**Data model.** Already have `chatrooms.created_by`. Add a `chatroom_moderators(chatroom_id, user_id, added_by, created_at)` table with `PRIMARY KEY (chatroom_id, user_id)`.
+
+**Permissions table.** Owners and mods can: edit chatroom settings, pin messages, delete others' messages, kick members. Owners only: add/remove moderators, delete the chatroom.
+
+**Implementation outline:**
+1. Migration for `chatroom_moderators`.
+2. Helper function in Postgres: `is_owner_or_mod(chatroom_id, user_id)` for reuse in RLS policies.
+3. RLS policies on `messages` for moderator-delete.
+4. Owner-only UI panel: "Manage chatroom" → add/remove mods, edit class metadata.
+
+**Concepts to learn:**
+- Role-based access control (RBAC) at the row level.
+- Why "everyone with a role flag" is simpler than per-action permission tables — until it isn't.
+
+**Difficulty:** Medium.
+
+### 2D. Report-and-remove a chatroom
+
+**Why.** README: if an owner is inactive or misbehaving and someone wants to "claim" the chatroom for that class, they can report it and have it removed.
 
 **Data model.**
-- Option A: add `image_url TEXT NULL` column to `messages`.
-- Option B: separate `attachments(id, message_id, kind, url, mime_type, size_bytes)` table for many files per message.
-
-**Recommendation: B.** Future-proofs for files (#3) and multiple attachments per message.
-
-**Implementation outline:**
-1. Create a Supabase Storage bucket `chat-attachments` (private). Set policies: signed URLs only.
-2. Migration for `attachments` table.
-3. Client: `<input type="file" accept="image/*">` in chat. On change → upload to Storage via `supabase.storage.from('chat-attachments').upload(path, file)` → get the path back.
-4. Server action: insert `messages` row + `attachments` row in a transaction. Use a Postgres function (`rpc`) for atomicity if needed.
-5. Render: when fetching messages, also fetch attachments. For images, render via Next.js `<Image>` with a signed URL (`createSignedUrl`).
-
-**Concepts to learn:**
-- Object storage vs database storage
-- Signed URLs (time-limited tokens that grant access)
-- MIME type validation server-side (don't trust the client's `Content-Type`)
-- Optimistic UI for uploads (show preview while uploading)
-- Image optimization via `next/image`
-
-**Difficulty:** Medium. The Storage learning curve is the bulk of it.
-
-### 3. File posting in group chat
-
-**Reuses the `attachments` table from #2.** Different rendering: show filename, size, MIME type, click to download.
-
-**Implementation outline:**
-1. Same upload flow as images, but no preview rendering.
-2. UI: `📄 lecture-notes.pdf (1.2 MB)` with download button.
-3. Type allowlist on the server: define a set of allowed MIME types and reject anything else. Block executables (`.exe`, `.sh`, `.app`, etc).
-4. Use `Content-Disposition: attachment` headers on the signed URL so the browser downloads instead of trying to render.
-
-**Concepts to learn:**
-- File type whitelisting (always allowlist, never blocklist — attackers find new extensions faster than you can add them)
-- The difference between *Content-Type* (what the file claims to be) and what it actually is — never trust user-supplied MIME
-- `Content-Disposition` headers for download UX
-
-**Difficulty:** Small if #2 is done.
-
-### 4. Friends and private messaging
-
-This is two features: **friendships** (a graph) and **DMs** (a different kind of chat).
-
-#### Friendships data model
-
 ```sql
-CREATE TABLE friendships (
-  requester_id UUID REFERENCES profiles(id),
-  receiver_id  UUID REFERENCES profiles(id),
-  status       TEXT NOT NULL CHECK (status IN ('pending','accepted','blocked')),
-  created_at   TIMESTAMPTZ DEFAULT NOW(),
-  PRIMARY KEY (requester_id, receiver_id)
+CREATE TABLE chatroom_reports (
+  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  chatroom_id  UUID NOT NULL REFERENCES chatrooms(id) ON DELETE CASCADE,
+  reporter_id  UUID NOT NULL REFERENCES profiles(id),
+  reason       TEXT NOT NULL,
+  status       TEXT NOT NULL CHECK (status IN ('pending','resolved','dismissed')) DEFAULT 'pending',
+  created_at   TIMESTAMPTZ DEFAULT NOW()
 );
 ```
 
-**State machine:** `pending` → `accepted` (or `blocked`). Once accepted, the relationship is symmetric (querying needs to handle both directions).
-
-**Concept:** symmetric vs directed relationships. A common alternative is to canonicalize ordering: store `(LEAST(a, b), GREATEST(a, b))` so each pair has exactly one row. Pick one approach and document it.
-
-#### DMs data model
-
-Two options:
-- **Reuse chatrooms:** add a `kind TEXT CHECK (kind IN ('class','dm'))` column. DMs have `course_id = NULL`. Simple, but starts overloading the chatrooms table.
-- **Separate `direct_message_threads` table:** purer schema, more code to write.
-
-**Recommendation: reuse chatrooms with `kind`.** Migration cost is small; you reuse `messages`, `chatroom_members`, the realtime listener, the UI.
-
 **Implementation outline:**
-1. `ALTER TABLE chatrooms ADD COLUMN kind TEXT NOT NULL DEFAULT 'class';`
-2. Friend request UI: search users, send request, accept/reject buttons. Friendships server actions for each.
-3. "Start DM" button on a friend's profile → server action that finds-or-creates a chatroom of `kind='dm'` with both members → redirect to it.
-4. Filter out DMs from the dashboard's "joined chatrooms" list (it should show classes; DMs go in a separate inbox).
-5. New `/messages` route showing DM threads.
+1. Migration.
+2. Server action `reportChatroom(chatroomId, reason)`. Rate-limit: max one open report per user per chatroom.
+3. Admin surface — for now, a `/admin` page gated to a hardcoded admin email; reviews open reports and can soft-delete a chatroom (add `deleted_at` column to `chatrooms`).
+4. Notify the original owner before removal (cooldown period — "responds within 7 days or chatroom is reassigned").
 
 **Concepts to learn:**
-- Graph data modeling
-- Request-state machines (pending/accepted/blocked)
-- "Find or create" idempotency (don't create duplicate DM threads when both users tap "Start DM")
-- Reusing existing schema vs creating new tables
+- Soft delete vs hard delete (soft preserves history; you want it here).
+- Moderation workflows are mostly product design, not code.
+- "Trust + safety" features get abused — rate-limit reports.
 
-**Difficulty:** Large. This is the biggest item on your list.
+**Difficulty:** Medium. Mostly product decisions.
 
-### 5. Group chat invite links
+### 2E. Profile: social media links + school email
+
+**Why.** README explicitly: profiles include "social media links so other users can connect with them" and "school email."
+
+**Data model.** Either:
+- **Option A:** `social_links JSONB` column on `profiles` — flexible, no migrations for new platforms.
+- **Option B:** `profile_social_links(profile_id, platform, url)` table — queryable, easier validation per platform.
+
+**Recommendation:** A — small data, never queried independently, JSON is fine.
+
+**Schools-email field.** Add `school_email TEXT NULL` to `profiles`. Validate with a Zod refinement that ends in a `.edu` (or domain matching the declared school — fancier).
+
+**Implementation outline:**
+1. Migration: add `social_links JSONB NOT NULL DEFAULT '{}'::jsonb`, `school_email TEXT NULL`.
+2. Update `update-profile` form + Zod schema.
+3. Render on profile page as icon links.
+
+**Difficulty:** Small.
+
+---
+
+## Tier 3 — Chatroom feature suite (the things in README "Chatrooms")
+
+These are the in-chatroom features the README commits to. Order is mine, sized by "smallest first."
+
+### 3A. Message reactions
+
+**Why first.** Smallest. Already had it queued as R1.
+
+**Data model:**
+```sql
+CREATE TABLE message_reactions (
+  message_id UUID REFERENCES messages(id) ON DELETE CASCADE,
+  user_id    UUID REFERENCES profiles(id),
+  emoji      TEXT NOT NULL,
+  PRIMARY KEY (message_id, user_id, emoji)
+);
+```
+
+**Concepts:** join tables, three-column primary key, Realtime UPDATE events.
+
+**Difficulty:** Small.
+
+### 3B. Emojis in messages
+
+**Why README calls it out separately.** README lists "Emojis" as its own bullet — so the user-facing affordance (an emoji picker button) is the feature, not just "you can type emojis already, it's Unicode." Use `emoji-mart` or similar; render via the user's system font.
+
+**Difficulty:** Tiny.
+
+### 3C. Pinned messages
+
+**Why.** README explicit. Class chatrooms accumulate office hours, syllabus links, exam dates. Pinning surfaces them.
+
+**How:** `pinned_at TIMESTAMPTZ NULL` on `messages`. Authorization: owner + mods only (Tier 2C prerequisite).
+
+**Difficulty:** Tiny after 2C.
+
+### 3D. Mentioning other users (@username)
+
+**Why.** README explicit. Critical for big class chatrooms to feel useful.
+
+**How:**
+1. Parse message body server-side for `@username` patterns. Look up matching profile IDs.
+2. `mentions(message_id, mentioned_user_id)` table.
+3. UI: render mentions as chips.
+4. Notification surface: badge on Header, list at `/notifications`.
+
+**Concepts:** parsing user-generated text, denormalized notification state, notification fan-out.
+
+**Difficulty:** Medium.
+
+### 3E. Edit / delete own messages (soft delete)
+
+**Already in the database** — UPDATE/DELETE RLS policies exist on `messages`. Just no UI.
+
+**Soft delete preferred.** Add `deleted_at TIMESTAMPTZ NULL`; render "[deleted]" placeholder. Preserves reply context if you ever add replies.
+
+**Implementation:**
+1. Migration for `deleted_at`.
+2. UI: hover on own message → edit/delete icons → confirm → submit.
+3. Extend realtime subscription to listen for `UPDATE` events (currently only `INSERT`).
+
+**Difficulty:** Small.
+
+### 3F. Image sharing
+
+**Architecture:** Postgres for metadata, Supabase Storage for bytes. Don't put image binaries in the DB.
+
+**Data model:** new `attachments(id, message_id, kind, url, mime_type, size_bytes)` table. Many-to-one with messages (lets you do "multiple images per message" later for free).
+
+**Implementation outline:**
+1. Create private Storage bucket `chat-attachments` with signed-URL-only policies.
+2. Migration for `attachments`.
+3. Client: `<input type="file" accept="image/*">` → upload → get path back.
+4. Server action: insert `messages` row + `attachments` row atomically.
+5. Render via `next/image` with a signed URL (`createSignedUrl`).
+
+**Concepts to learn:**
+- Object storage vs DB storage.
+- Signed URLs (time-limited access tokens).
+- Server-side MIME validation — never trust the client's `Content-Type`.
+- Optimistic UI for uploads (show preview while uploading).
+
+**Difficulty:** Medium. The Storage learning curve is most of it.
+
+### 3G. File sharing
+
+**Reuses the `attachments` table from 3F.** Different rendering: filename, size, MIME, click-to-download.
+
+**Critical rule.** Allowlist MIME types server-side. Block executables. Never blocklist — attackers find new extensions faster than you add them.
+
+**Difficulty:** Small after 3F.
+
+---
+
+## Tier 4 — Sharing (README explicit)
+
+### 4A. Chatroom invite links
+
+**Why.** README: "Users can also share the chatroom link with people via link / QR code." This is the link half.
 
 **Data model.**
 ```sql
@@ -189,79 +248,53 @@ CREATE TABLE chatroom_invites (
 );
 ```
 
-`code` is a short random string (8-12 chars from `nanoid`). Nullable expiry/max_uses so the inviter can choose "expires in 24h" or "permanent."
-
 **Implementation outline:**
-1. Migration for the table.
-2. `npm install nanoid`.
-3. Server action `createInvite(chatroomId, options)` — generates code, inserts row, returns shareable URL `${origin}/invite/${code}`.
-4. New route `/invite/[code]/page.tsx`:
-   - Look up code. If missing/expired/used-up → render error.
-   - If user not signed in → store the code in a cookie and redirect to `/signin?next=/invite/${code}`.
-   - If signed in → call `joinChatroom` (existing action), increment `uses`, redirect to `/chatrooms/${chatroom_id}`.
-5. UI in chatroom: "Generate invite link" button → modal with the URL + expiry/usage controls.
+1. Migration. `npm install nanoid` for short codes.
+2. `createInvite(chatroomId, options)` action.
+3. `/invite/[code]/page.tsx`:
+   - Look up code; reject expired / maxed-out.
+   - Sign in if needed (preserve destination via cookie).
+   - **School-gate** the join (Tier 2A applies here too).
+   - Increment `uses`, redirect to chatroom.
 
-**Concepts to learn:**
-- URL-as-token security (the code IS the credential)
-- `nanoid` for collision-resistant short IDs
-- Atomic increment-and-check for `uses < max_uses`
-- The "redirect after sign-in" pattern (preserving the original destination)
+**Concepts:** URL-as-token security, atomic increment-and-check, sign-in redirect pattern.
 
 **Difficulty:** Medium.
 
-### 6. Calling (future)
+### 4B. QR-code sharing
 
-**Architecture, briefly so you know what you're up against later:**
-- WebRTC for peer-to-peer audio/video.
-- A "signaling layer" so peers can find each other and exchange SDP offers — Supabase Realtime channels are perfectly suited for this (use them for ephemeral signaling, not persisted state).
-- A TURN server for NAT traversal — there are free-tier hosted ones (e.g., Twilio, OpenRelay).
-- Presence to show "who's online."
+**Why.** README explicit: "share via link / QR code." Tiny addition after 4A: same invite URL, rendered as a QR.
 
-**Skip this for now.** It's an order of magnitude harder than the other features. Get everything else solid first.
+**How.** `qrcode` npm package, render in the same modal as the invite link.
+
+**Difficulty:** Tiny.
 
 ---
 
-## My recommended additions
+## Tier 5 — Backend / infrastructure
 
-Ranked by "fits a study app + teaches something + small enough to ship."
+### 5A. Fuzzy search for class names
 
-### R1. Message reactions
+**Why.** "claud" should find "claude". Right now `.ilike('%foo%')` falls off a cliff once `courses` grows — B-tree indexes don't help middle-substring matches.
 
-**Why:** Tiny feature, high engagement, teaches a clean many-to-many relationship.
-
-**Data model:**
+**How: Postgres trigram similarity** (`pg_trgm` extension + GIN indexes).
 ```sql
-CREATE TABLE message_reactions (
-  message_id UUID REFERENCES messages(id) ON DELETE CASCADE,
-  user_id    UUID REFERENCES profiles(id),
-  emoji      TEXT NOT NULL,
-  PRIMARY KEY (message_id, user_id, emoji)
-);
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
+CREATE INDEX idx_courses_class_name_trgm ON courses USING GIN (class_name gin_trgm_ops);
+CREATE INDEX idx_courses_class_id_trgm   ON courses USING GIN (class_id   gin_trgm_ops);
 ```
 
-**Concepts:** join tables, primary keys with three columns, Realtime UPDATE events again.
+Then either keep `.ilike()` (indexes now help) or use the `<->` similarity operator via an RPC for ranked results.
+
+**Concepts:** Postgres extensions, trigram similarity, GIN indexes, RPC functions.
 
 **Difficulty:** Small.
 
-### R2. @Mentions
+### 5B. Message search
 
-**Why:** Critical for group conversations to feel useful. "Hey @ryan, did you finish the proof?" Generates a notification.
+**Why.** Once a chatroom has hundreds of messages, "what did the prof say about midterms?" is unfindable.
 
-**How:**
-1. Parse message body for `@username` patterns server-side. Look up the matching profile IDs.
-2. `mentions(message_id, mentioned_user_id)` table.
-3. UI: render mentions as chips in messages.
-4. Notification surface: badge on Header, list at `/notifications`.
-
-**Concepts:** parsing user-generated text, denormalized notification state, "notification fan-out" patterns.
-
-**Difficulty:** Medium.
-
-### R3. Message search
-
-**Why:** Once chatrooms have hundreds of messages, "what did the prof say about midterms?" is unfindable.
-
-**How:** Postgres full-text search.
+**How.** Postgres full-text search.
 ```sql
 ALTER TABLE messages ADD COLUMN body_tsv tsvector
   GENERATED ALWAYS AS (to_tsvector('english', body)) STORED;
@@ -269,196 +302,61 @@ CREATE INDEX idx_messages_body_tsv ON messages USING GIN (body_tsv);
 ```
 Query with `.textSearch('body_tsv', 'midterm')`.
 
-**Concepts:** `tsvector` and `tsquery`, GIN indexes, generated columns.
-
 **Difficulty:** Small once you understand the syntax.
 
-### R4. Pinned messages
+### 5C. Rate limiting
 
-**Why:** Class chatrooms accumulate important info (TA office hours, lecture schedule). Pinning surfaces it.
+**Why.** Without it, one malicious user can spam thousands of messages per second. Or one bug in your retry logic loops forever.
 
-**How:** `pinned_at TIMESTAMPTZ NULL` column on `messages`. Authorization: only chatroom creator can pin.
-
-**Difficulty:** Tiny.
-
-### R5. File library per chatroom
-
-**Why:** If people are sharing PDFs of lecture notes (#3), you want a "Files" tab to find them all without scrolling.
-
-**How:** Already have the data via `attachments` (R2 prerequisite). Just a new tab in the chatroom UI that queries `attachments` filtered by chatroom.
-
-**Difficulty:** Small after #3.
-
-### R6. Read receipts ("seen by")
-
-**Why:** Lets users know if their question got seen. Common chat-app feature.
-
-**How:** Simplest version — `last_read_message_id` column on `chatroom_members`. On chatroom view, update to the latest message ID. Render "seen by N" by counting members with `last_read_message_id >= this.id`.
-
-**Difficulty:** Small but has surprising complexity around edge cases (what counts as "read" — viewport visibility? mere page load?).
-
-### R7. Typing indicators
-
-**Why:** Realtime polish; teaches presence.
-
-**How:** Supabase Realtime presence (broadcast channel, not Postgres). User sends "I'm typing" → other clients listen. Auto-expire after 3s.
-
-**Difficulty:** Small. Mostly Realtime API learning.
-
-### R8. Profile customization (banner image, status)
-
-**Why:** Gives the social-feature reach you want.
-
-**How:** Storage bucket for banner uploads. New columns on `profiles` for `banner_url`, `status`. Same pattern as image posting (#2).
-
-**Difficulty:** Small after #2.
-
-### R9. Course wiki / pinned info doc
-
-**Why:** Differentiates from generic chat apps. Each class has a markdown doc anyone in the chatroom can edit (TA office hours, exam schedule, links to resources). Pinned to the top of the chatroom.
-
-**How:** New `course_wiki(course_id, body, updated_at, updated_by)` table. Markdown rendering with `react-markdown` (sanitized!). Edit history table optional.
-
-**Concepts:** XSS protection in user-generated markdown, last-write-wins vs operational transform.
+**How:** Upstash Redis (free tier) + middleware in `proxy.ts`.
 
 **Difficulty:** Medium.
 
-### R10. Dark mode
+### 5D. Error tracking (Sentry)
 
-**Why:** Cheap win. Students study at night.
+**Why.** Production errors should land in your inbox, not a user's console.
 
-**How:** Tailwind's `dark:` variant + a class on `<html>` toggled by a button. Persist to localStorage. Server-side: read the cookie to avoid flash of wrong theme.
-
-**Difficulty:** Tiny if you do it early; tedious to retrofit if you wait.
-
----
-
-## Backend changes
-
-### B1. Fuzzy search for class names
-
-**Why:** "claud" should find "claude". Exact match is a poor UX.
-
-**How: Postgres trigram similarity.** Free, indexed, and built for short strings.
-
-```sql
-CREATE EXTENSION IF NOT EXISTS pg_trgm;
-
-CREATE INDEX idx_courses_class_name_trgm
-  ON courses USING GIN (class_name gin_trgm_ops);
-CREATE INDEX idx_courses_class_id_trgm
-  ON courses USING GIN (class_id gin_trgm_ops);
-```
-
-Then in the action, instead of `.ilike(...)` use:
-```ts
-.or(`class_name.ilike.%${query}%,class_id.ilike.%${query}%`)
-.order('class_name', { ascending: true })
-```
-
-For real fuzzy ranking, use the `<->` similarity operator via an RPC function:
-```sql
-CREATE OR REPLACE FUNCTION search_courses(q TEXT)
-RETURNS SETOF courses AS $$
-  SELECT * FROM courses
-  WHERE similarity(class_name, q) > 0.2 OR similarity(class_id, q) > 0.2
-  ORDER BY GREATEST(similarity(class_name, q), similarity(class_id, q)) DESC
-  LIMIT 20;
-$$ LANGUAGE SQL STABLE;
-```
-
-Call from the client via `supabaseAdmin.rpc('search_courses', { q: query })`.
-
-**Concepts to learn:**
-- Postgres extensions
-- Trigram similarity (3-character substring matching)
-- GIN indexes for indexed string search
-- RPC functions in Supabase (defining DB-side logic)
-
-**Difficulty:** Small once you've enabled the extension.
-
-### B2. Database migrations
-
-**Why:** Right now your schema lives only in Supabase Studio. Lose the project, lose the schema. Worse: adding a column on prod that doesn't exist in dev = bugs nobody can reproduce.
-
-**How:** Supabase CLI supports versioned migrations:
-```
-supabase migration new add_messages_deleted_at
-```
-Creates a SQL file you commit to git. `supabase db push` applies pending migrations.
-
-**Difficulty:** Small once you set up the CLI.
-
-### B3. Environment variable validation at startup
-
-**Why:** Currently you'd discover a missing `SUPABASE_SERVICE_ROLE_KEY` only when someone tries to create a chatroom. Catch it at boot instead.
-
-**How:** Tiny module that imports zod and parses `process.env` against a schema. Import it once in `layout.tsx`. Throws on missing/malformed.
+**How:** `@sentry/nextjs` is one `npx` command.
 
 **Difficulty:** Tiny.
 
-### B4. Rate limiting
+### 5E. Tests + CI
 
-**Why:** Without it, one malicious user can spam thousands of messages per second. Or one bug in your retry logic loops forever.
+- One real integration test against a real Supabase test project.
+- GitHub Actions running `npm run lint && npm run build` on every PR.
 
-**How:** Supabase doesn't ship rate limiting; common pattern is Upstash Redis (free tier) + middleware in `proxy.ts`.
+**Why.** Even one test flips the perception of "is this a real project?"
 
-**Difficulty:** Medium.
-
-### B5. Sentry / structured logging
-
-**Why:** When something breaks in production, you want the error in your inbox, not in a user's browser console where you'll never see it.
-
-**How:** `@sentry/nextjs` is one `npx` command. Captures errors automatically.
-
-**Difficulty:** Tiny.
+**Difficulty:** Small for the first test; the habit is the hard part.
 
 ---
 
-## Suggested implementation order
+## Tier 6 — Stretch / polish (nice-to-have, not in README's core pitch)
 
-Strong recommendation to follow this rough order — each tier builds on the previous.
+These aren't promised by the README but commonly expected from chat apps. Add if the time's there.
 
-### Tier 1 (foundations, ~1-2 weeks)
-- [ ] F4. Database indexes (5 min, immediate payoff)
-- [ ] B2. Migrations (set this up before any schema changes below)
-- [ ] F1. RLS policies
-- [ ] F3. Zod validation
-- [ ] F2. Push search filtering to DB
-- [ ] B3. Env var validation
-
-### Tier 2 (high-impact small features, ~1-2 weeks)
-- [ ] R1. Message reactions
-- [ ] Item #1. Delete message
-- [ ] R4. Pinned messages
-- [ ] R10. Dark mode (do this *now*, easy when codebase is small)
-- [ ] B1. Fuzzy search
-
-### Tier 3 (medium features, ~3-4 weeks)
-- [ ] Item #2. Image posting (introduces Storage)
-- [ ] Item #3. File posting
-- [ ] R5. File library
-- [ ] Item #5. Invite links
-- [ ] R3. Message search
-
-### Tier 4 (hard features, ~3-4 weeks)
-- [ ] R2. @Mentions (needs notifications too)
-- [ ] Item #4. Friends + DMs
-- [ ] R6. Read receipts
-- [ ] R7. Typing indicators
-
-### Tier 5 (polish + future)
-- [ ] R8. Profile customization
-- [ ] R9. Course wiki
-- [ ] B4. Rate limiting (do before public launch)
-- [ ] B5. Sentry
-- [ ] Item #6. Calling (when everything else is solid)
+- [ ] **Pagination on messages.** Currently hard-capped at 50, no "load older" affordance. Older messages become unreachable in active chatrooms.
+- [ ] **Leave-chatroom UI.** DELETE policy on `chatroom_members` exists but is unreachable from the frontend.
+- [ ] **Profile customization** — banner image, status. Storage bucket + new `profiles` columns. Same pattern as 3F.
+- [ ] **Read receipts.** Simplest version: `last_read_message_id` column on `chatroom_members`. "Seen by N" by counting members past a message id.
+- [ ] **Typing indicators.** Supabase Realtime presence (broadcast, not Postgres). Auto-expire after 3s.
+- [ ] **Course wiki.** Markdown doc per course that anyone in the chatroom can edit (TA hours, exam schedule, links). Pinned at the top.
+- [ ] **Dark mode.** Tailwind `dark:` + a toggle persisted to localStorage. Read cookie server-side to avoid theme flash.
 
 ---
 
-## A few meta-suggestions
+## Not in current vision (out of scope unless README changes)
 
-- **Don't add features faster than you can RLS them.** F1 isn't optional once you have DMs — you cannot ship private messaging on a service-role-key bypass.
+Keeping these here so future-you remembers they were considered and intentionally deferred.
+
+- **Friends graph + direct messages.** README scopes StudyHub to *class* group chats, not a social network. Adding friends/DMs would change the product. Park indefinitely.
+- **Voice/video calling.** Mentioned in earlier roadmap drafts as "future"; not in README. WebRTC + signaling + TURN is an order of magnitude more work than the rest. Skip unless the product expands.
+
+---
+
+## Meta-suggestions
+
+- **Don't add features faster than you can RLS them.** Tier 2A (school gating) isn't optional — you cannot ship "only your school can join" on trust alone.
 - **Pick one tier, finish it, then move on.** Switching tiers mid-feature is how half-built code accumulates.
-- **Each feature needs a manual test plan and a PR description before it merges.** Even solo, write down "what does this fix and how do I verify it." This is a habit that scales when you start working on teams.
-- **The hardest features here aren't technical — they're product decisions.** "Does a class chatroom show DMs?" "What happens to messages when someone leaves?" "Can you reply to a deleted message?" None of those have right answers. Decide *before* coding.
+- **Each feature needs a manual test plan and a PR description before it merges.** Even solo. Habit that scales when you join a team.
+- **The hardest features here aren't technical — they're product decisions.** "What happens to messages when an owner is removed?" "Can a kicked moderator see history?" "Does changing schools delete your messages or just kick you?" None of these have universal right answers. Decide *before* coding.

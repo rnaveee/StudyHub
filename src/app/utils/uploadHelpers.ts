@@ -113,9 +113,6 @@ export async function upsertCurrentUser(){
             username,
             email,
             avatar_url: user.imageUrl,
-            school: 'Not set yet.',
-            major: 'Not set yet.',
-            year: 0,
             
         })
     .select()

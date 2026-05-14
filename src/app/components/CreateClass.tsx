@@ -2,6 +2,7 @@
 
 import { useActionState } from "react";
 import { createChatroom, type CreateChatroomState } from "../dashboard/actions";
+import ErrorMsg from "./ErrorMsg";
 
 const initialState: CreateChatroomState = { error: null };
 
@@ -15,11 +16,7 @@ export default function CreateClass(){
 
             <div className="mt-4">
                 <form className="grid gap-3" action={formAction}>
-                    {state.error && (
-                        <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-                            {state.error}
-                        </div>
-                    )}
+                    <ErrorMsg message={state.error} />
                     <div className="grid gap-3 sm:grid-cols-[9rem_minmax(0,1fr)]">
                         <label className="block">
                             <span className="mb-1 block text-sm font-semibold text-slate-700">Class ID</span>

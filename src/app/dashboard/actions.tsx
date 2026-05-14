@@ -17,7 +17,9 @@ const courseSchema = z.object({
     className: z.preprocess(emptyToUndef, z.string().trim().max(100)),
     professor: z.preprocess(emptyToUndef, z.string().trim().max(50).optional()),
     school: z.preprocess(emptyToUndef, z.string().trim().max(100)),
-    finalExamDate: z.preprocess(emptyToUndef, z.iso.date().optional())
+    finalExamDate: z.preprocess(emptyToUndef, z.iso.date().refine(
+        (d) => new Date(d) >= new Date(new Date().toDateString()), { message: "Final exam date must be today or in the future." })
+        .optional())
 });
 
 const searchSchema = z.object({
@@ -43,8 +45,7 @@ export async function createChatroom(
     });
 
     if (!courseParsed.success) {
-        const first = courseParsed.error.issues[0];
-        return { error: `${first.path.join(".") || "input"}: ${first.message}` };
+        return { error: courseParsed.error.issues[0].message };
     }
 
     const { classId, className, professor, school, finalExamDate } = courseParsed.data;
